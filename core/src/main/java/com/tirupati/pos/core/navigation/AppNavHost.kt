@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.tirupati.pos.core.ui.home.HomeScreen
 
 @Composable
 fun AppNavHost(
@@ -16,7 +17,7 @@ fun AppNavHost(
     startDestination: String = AppDestination.Dashboard.route
 ) {
     NavHost(navController = navController, startDestination = startDestination) {
-        composable(AppDestination.Dashboard.route) { PlaceholderDestination("Dashboard") }
+        composable(AppDestination.Dashboard.route) { HomeScreen(onActionClick = { route -> navController.navigate(route) }) }
         composable(AppDestination.Auth.route) { PlaceholderDestination("Auth") }
         composable(AppDestination.Products.route) { PlaceholderDestination("Products") }
         composable(AppDestination.Billing.route) { PlaceholderDestination("Billing") }

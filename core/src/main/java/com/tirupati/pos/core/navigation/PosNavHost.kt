@@ -5,6 +5,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.tirupati.pos.core.ui.home.HomeScreen
+import androidx.compose.ui.Modifier
 
 @Composable
 fun PosNavHost(
@@ -15,7 +17,7 @@ fun PosNavHost(
         navController = navController,
         startDestination = startDestination
     ) {
-        composable(AppDestination.Dashboard.route) { PlaceholderDestination() }
+        composable(AppDestination.Dashboard.route) { HomeScreen(onActionClick = { route -> navController.navigate(route) }, modifier = Modifier) }
         composable(AppDestination.Auth.route) { PlaceholderDestination() }
         composable(AppDestination.Products.route) { PlaceholderDestination() }
         composable(AppDestination.Billing.route) { PlaceholderDestination() }

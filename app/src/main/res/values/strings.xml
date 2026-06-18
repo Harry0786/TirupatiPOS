@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TEPOS</string>
+    <string name="supabase_url">https://rawcqqejrycunvkqcffu.supabase.co</string>
+    <string name="supabase_anon_key">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJhd2NxcWVqcnljdW52a3FjZmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NTkzNDAsImV4cCI6MjA5NzMzNTM0MH0.JJdK95dNAhe9UTIp9u7oq4lUClcHcgzqU8cCK7a8d_I</string>
+</resources>
