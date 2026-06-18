@@ -1,6 +1,8 @@
-# Gradle files
+# Gradle and build files
 .gradle/
 build/
+bin/
+out/
 
 # Local configuration files
 local.properties
