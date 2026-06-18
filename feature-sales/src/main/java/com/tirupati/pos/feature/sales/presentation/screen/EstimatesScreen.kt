@@ -236,10 +236,9 @@ fun EstimatesList(
                                     .background(
                                         when (estimate.status) {
                                             EstimateStatus.DRAFT -> Color(0xFFFEF3C7)
-                                            EstimateStatus.APPROVED -> Color(0xFFD1FAE5)
-                                            EstimateStatus.INVOICE -> Color(0xFFDBEAFE)
-                                            EstimateStatus.PAID -> Color(0xFFE0F2FE)
-                                            EstimateStatus.SYNCED -> Color(0xFFF3F4F6)
+                                            EstimateStatus.PRINTED -> Color(0xFFD1FAE5)
+                                            EstimateStatus.CONVERTED -> Color(0xFFDBEAFE)
+                                            EstimateStatus.CANCELLED -> Color(0xFFFEE2E2)
                                         }
                                     )
                                     .padding(horizontal = 8.dp, vertical = 2.dp)
@@ -250,10 +249,9 @@ fun EstimatesList(
                                     fontWeight = FontWeight.Bold,
                                     color = when (estimate.status) {
                                         EstimateStatus.DRAFT -> Color(0xFFD97706)
-                                        EstimateStatus.APPROVED -> Color(0xFF059669)
-                                        EstimateStatus.INVOICE -> Color(0xFF2563EB)
-                                        EstimateStatus.PAID -> Color(0xFF0284C7)
-                                        EstimateStatus.SYNCED -> Color(0xFF4B5563)
+                                        EstimateStatus.PRINTED -> Color(0xFF059669)
+                                        EstimateStatus.CONVERTED -> Color(0xFF2563EB)
+                                        EstimateStatus.CANCELLED -> Color(0xFFDC2626)
                                     }
                                 )
                             }

@@ -23,8 +23,7 @@ class SyncWorker @AssistedInject constructor(
     private val syncQueue: SyncQueue,
     private val supabaseClient: SupabaseClient,
     private val networkMonitor: NetworkMonitor,
-    private val syncStatusManager: SyncStatusManager,
-    private val downwardSyncHandlers: Set<@JvmSuppressWildcards DownwardSyncHandler>
+    private val syncStatusManager: SyncStatusManager
 ) : CoroutineWorker(appContext, workerParameters) {
     override suspend fun doWork(): Result {
         // network status check
@@ -35,93 +34,88 @@ class SyncWorker @AssistedInject constructor(
 
 
 
-        val pendingOps = syncQueue.drain()
-        android.util.Log.d("SyncWorker", "Pending ops count: ${pendingOps.size}")
-
         var hasFailure = false
+        val batchSize = 50
+        var pendingOps = syncQueue.getBatch(batchSize)
+        android.util.Log.d("SyncWorker", "Initial pending ops batch size: ${pendingOps.size}")
 
-        for (op in pendingOps) {
-            try {
-                android.util.Log.d(
-                    "SyncWorker",
-                    "Processing op id=${op.id} type=${op.operationType} entity=${op.entityType}"
-                )
-                // Table name convention: lower-cased plural/snake_case representation
-                val tableName = op.entityType.lowercase().trim()
+        while (pendingOps.isNotEmpty() && !hasFailure) {
+            for (op in pendingOps) {
+                try {
+                    android.util.Log.d(
+                        "SyncWorker",
+                        "Processing op id=${op.id} type=${op.operationType} entity=${op.entityType}"
+                    )
+                    // Table name convention: lower-cased plural/snake_case representation
+                    val tableName = op.entityType.lowercase().trim()
 
-                when (op.operationType.uppercase()) {
-                    "INSERT", "UPDATE" -> {
-                        if (op.payloadJson != null) {
-                            val element = Json.parseToJsonElement(op.payloadJson)
-                            if (element is JsonObject) {
-                                val jsonObject = element.jsonObject
-                                val itemsArray = jsonObject["items"]?.jsonArray
-                                
-                                val map = mutableMapOf<String, JsonElement>()
-                                jsonObject.entries.forEach { (key, value) ->
-                                    if (key != "items") {
-                                        val snakeKey = key.replace(Regex("([a-z])([A-Z]+)")) {
-                                            "${it.groupValues[1]}_${it.groupValues[2].lowercase()}"
-                                        }
-                                        map[snakeKey] = value
-                                    }
-                                }
-                                val snakeObject = JsonObject(map)
-                                
-                                supabaseClient.postgrest[tableName].upsert(snakeObject)
-                                
-                                if (itemsArray != null && itemsArray.isNotEmpty()) {
-                                    val itemTableName = when (tableName) {
-                                        "estimates" -> "estimate_items"
-                                        "invoices" -> "invoice_items"
-                                        else -> null
-                                    }
-                                    if (itemTableName != null) {
-                                        val snakeItems = itemsArray.map { item ->
-                                            val itemMap = mutableMapOf<String, JsonElement>()
-                                            item.jsonObject.entries.forEach { (key, value) ->
-                                                val snakeKey = key.replace(Regex("([a-z])([A-Z]+)")) {
-                                                    "${it.groupValues[1]}_${it.groupValues[2].lowercase()}"
-                                                }
-                                                itemMap[snakeKey] = value
+                    when (op.operationType.uppercase()) {
+                        "INSERT", "UPDATE" -> {
+                            if (op.payloadJson != null) {
+                                val element = Json.parseToJsonElement(op.payloadJson)
+                                if (element is JsonObject) {
+                                    val jsonObject = element.jsonObject
+                                    val itemsArray = jsonObject["items"]?.jsonArray
+                                    
+                                    val map = mutableMapOf<String, JsonElement>()
+                                    jsonObject.entries.forEach { (key, value) ->
+                                        if (key != "items") {
+                                            val snakeKey = key.replace(Regex("([a-z])([A-Z]+)")) {
+                                                "${it.groupValues[1]}_${it.groupValues[2].lowercase()}"
                                             }
-                                            JsonObject(itemMap)
+                                            map[snakeKey] = value
                                         }
-                                        supabaseClient.postgrest[itemTableName].upsert(snakeItems)
+                                    }
+                                    val snakeObject = JsonObject(map)
+                                    
+                                    supabaseClient.postgrest[tableName].upsert(snakeObject)
+                                    
+                                    if (itemsArray != null && itemsArray.isNotEmpty()) {
+                                        val itemTableName = when (tableName) {
+                                            "estimates" -> "estimate_items"
+                                            "invoices" -> "invoice_items"
+                                            else -> null
+                                        }
+                                        if (itemTableName != null) {
+                                            val snakeItems = itemsArray.map { item ->
+                                                val itemMap = mutableMapOf<String, JsonElement>()
+                                                item.jsonObject.entries.forEach { (key, value) ->
+                                                    val snakeKey = key.replace(Regex("([a-z])([A-Z]+)")) {
+                                                        "${it.groupValues[1]}_${it.groupValues[2].lowercase()}"
+                                                    }
+                                                    itemMap[snakeKey] = value
+                                                }
+                                                JsonObject(itemMap)
+                                            }
+                                            supabaseClient.postgrest[itemTableName].upsert(snakeItems)
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
-                    "DELETE" -> {
-                        supabaseClient.postgrest[tableName].delete {
-                            filter { eq("id", op.entityId) }
+                        "DELETE" -> {
+                            supabaseClient.postgrest[tableName].delete {
+                                filter { eq("id", op.entityId) }
+                            }
                         }
                     }
+                    // Successfully synchronized, dequeue the operation
+                    syncQueue.dequeue(op.id)
+                    android.util.Log.d("SyncWorker", "Successfully synced op id=${op.id}")
+                } catch (t: Throwable) {
+                    android.util.Log.e("SyncWorker", "Error syncing op id=${op.id}", t)
+                    hasFailure = true
+                    break
                 }
-                // Successfully synchronized, dequeue the operation
-                syncQueue.dequeue(op.id)
-                android.util.Log.d("SyncWorker", "Successfully synced op id=${op.id}")
-            } catch (t: Throwable) {
-                android.util.Log.e("SyncWorker", "Error syncing op id=${op.id}", t)
-                hasFailure = true
+            }
+
+            if (!hasFailure) {
+                pendingOps = syncQueue.getBatch(batchSize)
             }
         }
 
         if (!hasFailure) {
-            // Perform Downward Sync for all features
-            try {
-                downwardSyncHandlers.forEach { handler ->
-                    handler.performDownwardSync()
-                }
-            } catch (t: Throwable) {
-                android.util.Log.e("SyncWorker", "Error during downward sync", t)
-                hasFailure = true
-            }
-
-            if (!hasFailure) {
-                syncStatusManager.updateLastSyncTime()
-            }
+            syncStatusManager.updateLastSyncTime()
         }
         return if (hasFailure) Result.retry() else Result.success()
     }

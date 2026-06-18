@@ -5,10 +5,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 enum class EstimateStatus {
     DRAFT,
-    APPROVED,
-    INVOICE,
-    PAID,
-    SYNCED
+    PRINTED,
+    CONVERTED,
+    CANCELLED
 }
 
 @Serializable
@@ -19,30 +18,23 @@ enum class InvoiceStatus {
 }
 
 @Serializable
-data class Product(
-    val id: String,
-    val itemCode: String,
-    val itemName: String,
-    val unit: String,
-    val sellingPrice: Double,
-    val gstPercent: Double,
-    val stock: Int = 100 // Default stock placeholder
-)
-
-@Serializable
 data class EstimateItem(
     val id: String,
     val estimateId: String,
+    val productId: String,
     val srNo: Int,
     val itemCode: String,
     val itemName: String,
     val quantity: Int,
     val unit: String,
-    val rate: Double,
+    val purchaseRate: Double,
+    val sellingRate: Double,
     val discountPercent: Double,
     val discountAmount: Double,
     val gstPercent: Double,
-    val amount: Double = calculateLineTotal(quantity, rate, discountPercent, discountAmount, gstPercent)
+    val lineTotal: Double = calculateLineTotal(quantity, sellingRate, discountPercent, discountAmount, gstPercent),
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
 ) {
     companion object {
         fun calculateLineTotal(
@@ -66,12 +58,13 @@ data class Estimate(
     val id: String,
     val estimateNumber: String,
     val customerName: String,
+    val customerPhone: String = "",
+    val customerAddress: String = "",
     val date: String,
     val time: String,
     val status: EstimateStatus,
     val subtotal: Double,
-    val itemDiscount: Double,
-    val billDiscount: Double = 0.0,
+    val discountTotal: Double,
     val gstTotal: Double,
     val grandTotal: Double,
     val items: List<EstimateItem> = emptyList(),
@@ -83,16 +76,20 @@ data class Estimate(
 data class InvoiceItem(
     val id: String,
     val invoiceId: String,
+    val productId: String,
     val srNo: Int,
     val itemCode: String,
     val itemName: String,
     val quantity: Int,
     val unit: String,
-    val rate: Double,
+    val purchaseRate: Double,
+    val sellingRate: Double,
     val discountPercent: Double,
     val discountAmount: Double,
     val gstPercent: Double,
-    val amount: Double
+    val lineTotal: Double,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
 )
 
 @Serializable
@@ -101,12 +98,13 @@ data class Invoice(
     val estimateId: String,
     val invoiceNumber: String,
     val customerName: String,
+    val customerPhone: String = "",
+    val customerAddress: String = "",
     val date: String,
     val time: String,
     val status: InvoiceStatus,
     val subtotal: Double,
-    val itemDiscount: Double,
-    val billDiscount: Double = 0.0,
+    val discountTotal: Double,
     val gstTotal: Double,
     val grandTotal: Double,
     val paymentMethod: String? = null, // CASH, UPI, CARD, BANK_TRANSFER

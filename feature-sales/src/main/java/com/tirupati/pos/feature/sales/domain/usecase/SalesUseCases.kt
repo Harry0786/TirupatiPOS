@@ -5,7 +5,7 @@ import com.tirupati.pos.feature.sales.domain.model.EstimateItem
 import com.tirupati.pos.feature.sales.domain.model.EstimateStatus
 import com.tirupati.pos.feature.sales.domain.model.Invoice
 import com.tirupati.pos.feature.sales.domain.model.InvoiceStatus
-import com.tirupati.pos.feature.sales.domain.model.Product
+import com.tirupati.pos.feature.products.domain.model.Product
 import com.tirupati.pos.feature.sales.domain.repository.SalesRepository
 import kotlinx.coroutines.flow.Flow
 import java.text.SimpleDateFormat
@@ -46,19 +46,25 @@ class CreateProductUseCase @Inject constructor(
     private val repository: SalesRepository
 ) {
     suspend operator fun invoke(
+        companyId: String,
         itemCode: String,
         itemName: String,
         unit: String,
-        sellingPrice: Double,
-        gstPercent: Double
+        purchaseRate: Double,
+        sellingRate: Double,
+        stockQuantity: Double
     ): Product {
         val product = Product(
             id = UUID.randomUUID().toString(),
+            companyId = companyId,
             itemCode = itemCode,
             itemName = itemName,
             unit = unit,
-            sellingPrice = sellingPrice,
-            gstPercent = gstPercent
+            purchaseRate = purchaseRate,
+            sellingRate = sellingRate,
+            stockQuantity = stockQuantity,
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis()
         )
         repository.saveProduct(product)
         return product
@@ -82,35 +88,40 @@ class ConvertToInvoiceUseCase @Inject constructor(
             estimateId = estimate.id,
             invoiceNumber = invoiceNumber,
             customerName = estimate.customerName,
+            customerPhone = estimate.customerPhone,
+            customerAddress = estimate.customerAddress,
             date = estimate.date,
             time = estimate.time,
             status = InvoiceStatus.PENDING,
             subtotal = estimate.subtotal,
-            itemDiscount = estimate.itemDiscount,
-            billDiscount = estimate.billDiscount,
+            discountTotal = estimate.discountTotal,
             gstTotal = estimate.gstTotal,
             grandTotal = estimate.grandTotal,
             items = estimate.items.map {
                 com.tirupati.pos.feature.sales.domain.model.InvoiceItem(
                     id = UUID.randomUUID().toString(),
                     invoiceId = "", // set in implementation repo mapping if needed
+                    productId = it.productId,
                     srNo = it.srNo,
                     itemCode = it.itemCode,
                     itemName = it.itemName,
                     quantity = it.quantity,
                     unit = it.unit,
-                    rate = it.rate,
+                    purchaseRate = it.purchaseRate,
+                    sellingRate = it.sellingRate,
                     discountPercent = it.discountPercent,
                     discountAmount = it.discountAmount,
                     gstPercent = it.gstPercent,
-                    amount = it.amount
+                    lineTotal = it.lineTotal,
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis()
                 )
             }
         )
 
         repository.saveInvoice(invoice)
-        // Also update the original estimate status to INVOICE
-        repository.updateEstimateStatus(estimateId, EstimateStatus.INVOICE.name)
+        // Also update the original estimate status to CONVERTED
+        repository.updateEstimateStatus(estimateId, EstimateStatus.CONVERTED.name)
         
         return invoice
     }

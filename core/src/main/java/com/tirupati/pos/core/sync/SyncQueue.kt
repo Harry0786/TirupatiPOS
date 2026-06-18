@@ -20,4 +20,6 @@ class SyncQueue @Inject constructor(
     }
 
     suspend fun drain(): List<PendingOperation> = dao.getAll()
+
+    suspend fun getBatch(limit: Int): List<PendingOperation> = dao.getBatch(limit)
 }

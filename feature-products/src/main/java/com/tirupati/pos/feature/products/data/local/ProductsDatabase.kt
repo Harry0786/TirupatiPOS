@@ -8,7 +8,7 @@ import androidx.room.RoomDatabase
         LocalCompany::class,
         LocalProduct::class
     ],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 abstract class ProductsDatabase : RoomDatabase() {

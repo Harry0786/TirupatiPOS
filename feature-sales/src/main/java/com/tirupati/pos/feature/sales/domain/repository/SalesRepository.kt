@@ -3,7 +3,7 @@ package com.tirupati.pos.feature.sales.domain.repository
 import com.tirupati.pos.feature.sales.domain.model.Estimate
 import com.tirupati.pos.feature.sales.domain.model.EstimateItem
 import com.tirupati.pos.feature.sales.domain.model.Invoice
-import com.tirupati.pos.feature.sales.domain.model.Product
+import com.tirupati.pos.feature.products.domain.model.Product
 import kotlinx.coroutines.flow.Flow
 
 interface SalesRepository {

@@ -23,7 +23,11 @@ class DefaultSyncManager @Inject constructor(
             .setConstraints(constraints)
             .build()
 
-        WorkManager.getInstance(context).enqueue(syncRequest)
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            "TEPOS_ONE_TIME_SYNC",
+            androidx.work.ExistingWorkPolicy.REPLACE,
+            syncRequest
+        )
     }
 
     override fun startPeriodicSync() {

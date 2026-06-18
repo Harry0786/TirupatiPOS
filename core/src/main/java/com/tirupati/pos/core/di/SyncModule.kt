@@ -23,9 +23,3 @@ object SyncModule {
     fun provideSyncScheduler(impl: DefaultSyncScheduler): SyncScheduler = impl
 }
 
-@Module
-@InstallIn(SingletonComponent::class)
-abstract class SyncBindingsModule {
-    @dagger.multibindings.Multibinds
-    abstract fun bindDownwardSyncHandlers(): Set<com.tirupati.pos.core.sync.DownwardSyncHandler>
-}

@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.tirupati.pos.feature.sales.domain.model.Estimate
 import com.tirupati.pos.feature.sales.domain.model.EstimateItem
 import com.tirupati.pos.feature.sales.domain.model.EstimateStatus
-import com.tirupati.pos.feature.sales.domain.model.Product
+import com.tirupati.pos.feature.products.domain.model.Product
 import com.tirupati.pos.feature.sales.domain.usecase.GetEstimatesUseCase
 import com.tirupati.pos.feature.sales.domain.usecase.GetEstimateDetailsUseCase
 import com.tirupati.pos.feature.sales.domain.usecase.SaveEstimateUseCase
@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -39,7 +40,9 @@ class EstimateViewModel @Inject constructor(
     private val convertToInvoiceUseCase: ConvertToInvoiceUseCase,
     private val searchProductsUseCase: SearchProductsUseCase,
     private val createProductUseCase: CreateProductUseCase,
-    private val salesRepository: SalesRepository
+    private val salesRepository: SalesRepository,
+    private val productRepository: com.tirupati.pos.feature.products.domain.repository.ProductRepository,
+    private val companyRepository: com.tirupati.pos.feature.products.domain.repository.CompanyRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(EstimateUiState())
@@ -54,16 +57,55 @@ class EstimateViewModel @Inject constructor(
                 _state.update { it.copy(estimates = list) }
             }
         }
-        // Run initial empty product search to populate placeholders
+        viewModelScope.launch {
+            companyRepository.observeCompanies().collect { list ->
+                _state.update { it.copy(companies = list) }
+            }
+        }
         onEvent(EstimateEvent.SearchProducts(""))
     }
 
     fun onEvent(event: EstimateEvent) {
         when (event) {
+            is EstimateEvent.StartNewEstimate -> {
+                val nextEstimateNumber = generateNextEstimateNumber(_state.value.estimates)
+                val estimateId = UUID.randomUUID().toString()
+                val timestamp = System.currentTimeMillis()
+                
+                val dateStr = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(timestamp))
+                val timeStr = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestamp))
+
+                val newEstimate = Estimate(
+                    id = estimateId,
+                    estimateNumber = nextEstimateNumber,
+                    customerName = "Walk-In Customer",
+                    customerPhone = "",
+                    customerAddress = "",
+                    date = dateStr,
+                    time = timeStr,
+                    status = EstimateStatus.DRAFT,
+                    subtotal = 0.0,
+                    discountTotal = 0.0,
+                    gstTotal = 0.0,
+                    grandTotal = 0.0,
+                    items = emptyList()
+                )
+
+                _state.update {
+                    it.copy(
+                        currentEstimate = newEstimate,
+                        selectedItems = emptyList(),
+                        stockWarnings = emptyMap(),
+                        printCustomerName = "",
+                        printPhoneNumber = "",
+                        printAddress = ""
+                    ).recalculateTotals()
+                }
+            }
             is EstimateEvent.SearchProducts -> {
                 _state.update { it.copy(searchProductsQuery = event.query) }
                 viewModelScope.launch {
-                    val results = searchProductsUseCase(event.query)
+                    val results = salesRepository.searchProducts(event.query)
                     _state.update { it.copy(searchProductsResults = results) }
                 }
             }
@@ -73,13 +115,23 @@ class EstimateViewModel @Inject constructor(
                 
                 _state.update { currentState ->
                     val newList = currentState.selectedItems.toMutableList()
+                    val newQty = if (existingItemIndex != -1) newList[existingItemIndex].quantity + 1 else 1
+
+                    // Stock Availability Warning Check
+                    val updatedWarnings = currentState.stockWarnings.toMutableMap()
+                    if (newQty > product.stockQuantity) {
+                        updatedWarnings[product.itemCode] = "⚠ Available Stock: ${product.stockQuantity.toInt()} | Requested Quantity: $newQty"
+                    } else {
+                        updatedWarnings.remove(product.itemCode)
+                    }
+
                     if (existingItemIndex != -1) {
                         val existing = newList[existingItemIndex]
                         val updated = existing.copy(
-                            quantity = existing.quantity + 1,
-                            amount = EstimateItem.calculateLineTotal(
-                                existing.quantity + 1,
-                                existing.rate,
+                            quantity = newQty,
+                            lineTotal = EstimateItem.calculateLineTotal(
+                                newQty,
+                                existing.sellingRate,
                                 existing.discountPercent,
                                 existing.discountAmount,
                                 existing.gstPercent
@@ -89,58 +141,78 @@ class EstimateViewModel @Inject constructor(
                     } else {
                         val newItem = EstimateItem(
                             id = UUID.randomUUID().toString(),
-                            estimateId = "",
+                            estimateId = currentState.currentEstimate?.id ?: "",
+                            productId = product.id,
                             srNo = newList.size + 1,
                             itemCode = product.itemCode,
                             itemName = product.itemName,
                             quantity = 1,
                             unit = product.unit,
-                            rate = product.sellingPrice,
+                            purchaseRate = product.purchaseRate,
+                            sellingRate = product.sellingRate,
                             discountPercent = 0.0,
                             discountAmount = 0.0,
-                            gstPercent = product.gstPercent
+                            gstPercent = 18.0 // default GST of 18% per specs
                         )
                         newList.add(newItem)
                     }
-                    currentState.copy(selectedItems = newList).recalculateTotals()
+                    currentState.copy(selectedItems = newList, stockWarnings = updatedWarnings).recalculateTotals()
                 }
             }
             is EstimateEvent.EditItemClicked -> {
                 _state.update { it.copy(activeItemForEditing = event.item, showRowEditorBottomSheet = true) }
             }
             is EstimateEvent.UpdateItemInEstimate -> {
-                _state.update { currentState ->
-                    val newList = currentState.selectedItems.map { item ->
-                        if (item.id == event.itemId) {
-                            item.copy(
-                                quantity = event.quantity,
-                                rate = event.rate,
-                                discountPercent = event.discountPercent,
-                                discountAmount = event.discountAmount,
-                                gstPercent = event.gstPercent,
-                                amount = EstimateItem.calculateLineTotal(
-                                    event.quantity,
-                                    event.rate,
-                                    event.discountPercent,
-                                    event.discountAmount,
-                                    event.gstPercent
-                                )
-                            )
-                        } else {
-                            item
+                viewModelScope.launch {
+                    val product = productRepository.getProduct(event.itemId) ?: productRepository.observeProducts().firstOrNull()?.find { it.id == event.itemId }
+                    val stockQty = product?.stockQuantity ?: 999.0
+                    val itemCode = _state.value.selectedItems.find { it.id == event.itemId }?.itemCode ?: ""
+
+                    _state.update { currentState ->
+                        val updatedWarnings = currentState.stockWarnings.toMutableMap()
+                        if (event.quantity > stockQty && itemCode.isNotBlank()) {
+                            updatedWarnings[itemCode] = "⚠ Available Stock: ${stockQty.toInt()} | Requested Quantity: ${event.quantity}"
+                        } else if (itemCode.isNotBlank()) {
+                            updatedWarnings.remove(itemCode)
                         }
-                    }.mapIndexed { index, item ->
-                        item.copy(srNo = index + 1)
+
+                        val newList = currentState.selectedItems.map { item ->
+                            if (item.id == event.itemId) {
+                                item.copy(
+                                    quantity = event.quantity,
+                                    sellingRate = event.rate,
+                                    discountPercent = event.discountPercent,
+                                    discountAmount = event.discountAmount,
+                                    gstPercent = event.gstPercent,
+                                    lineTotal = EstimateItem.calculateLineTotal(
+                                        event.quantity,
+                                        event.rate,
+                                        event.discountPercent,
+                                        event.discountAmount,
+                                        event.gstPercent
+                                    )
+                                )
+                            } else {
+                                item
+                            }
+                        }.mapIndexed { index, item ->
+                            item.copy(srNo = index + 1)
+                        }
+                        currentState.copy(
+                            selectedItems = newList,
+                            showRowEditorBottomSheet = false,
+                            activeItemForEditing = null,
+                            stockWarnings = updatedWarnings
+                        ).recalculateTotals()
                     }
-                    currentState.copy(
-                        selectedItems = newList,
-                        showRowEditorBottomSheet = false,
-                        activeItemForEditing = null
-                    ).recalculateTotals()
                 }
             }
             is EstimateEvent.RemoveItemFromEstimate -> {
                 _state.update { currentState ->
+                    val removedItemCode = currentState.selectedItems.find { it.id == event.itemId }?.itemCode ?: ""
+                    val updatedWarnings = currentState.stockWarnings.toMutableMap()
+                    updatedWarnings.remove(removedItemCode)
+
                     val newList = currentState.selectedItems.filter { it.id != event.itemId }
                         .mapIndexed { index, item ->
                             item.copy(srNo = index + 1)
@@ -148,26 +220,31 @@ class EstimateViewModel @Inject constructor(
                     currentState.copy(
                         selectedItems = newList,
                         showRowEditorBottomSheet = false,
-                        activeItemForEditing = null
+                        activeItemForEditing = null,
+                        stockWarnings = updatedWarnings
                     ).recalculateTotals()
                 }
             }
             is EstimateEvent.DismissRowEditor -> {
                 _state.update { it.copy(showRowEditorBottomSheet = false, activeItemForEditing = null) }
             }
-            is EstimateEvent.SetBillDiscount -> {
-                _state.update { it.copy(billDiscount = event.amount).recalculateTotals() }
-            }
             is EstimateEvent.ClickCreateProduct -> {
+                val initialCompanyId = _state.value.companies.firstOrNull()?.id ?: ""
                 _state.update {
                     it.copy(
                         showCreateProductDialog = true,
+                        quickProductCompanyId = initialCompanyId,
                         quickProductItemCode = it.searchProductsQuery,
                         quickProductItemName = "",
+                        quickProductUnit = "Pcs",
+                        quickProductPurchaseRate = "",
                         quickProductSellingPrice = "",
-                        quickProductGstPercent = 18.0
+                        quickProductStockQuantity = "100"
                     )
                 }
+            }
+            is EstimateEvent.UpdateQuickProductCompanyId -> {
+                _state.update { it.copy(quickProductCompanyId = event.companyId) }
             }
             is EstimateEvent.UpdateQuickProductItemCode -> {
                 _state.update { it.copy(quickProductItemCode = event.itemCode) }
@@ -178,18 +255,18 @@ class EstimateViewModel @Inject constructor(
             is EstimateEvent.UpdateQuickProductUnit -> {
                 _state.update { it.copy(quickProductUnit = event.unit) }
             }
+            is EstimateEvent.UpdateQuickProductPurchaseRate -> {
+                _state.update { it.copy(quickProductPurchaseRate = event.rate) }
+            }
             is EstimateEvent.UpdateQuickProductSellingPrice -> {
                 _state.update { it.copy(quickProductSellingPrice = event.price) }
             }
-            is EstimateEvent.UpdateQuickProductGstPercent -> {
-                _state.update { it.copy(quickProductGstPercent = event.gst) }
+            is EstimateEvent.UpdateQuickProductStockQuantity -> {
+                _state.update { it.copy(quickProductStockQuantity = event.qty) }
             }
             is EstimateEvent.SaveQuickProduct -> {
                 val code = _state.value.quickProductItemCode
                 val name = _state.value.quickProductItemName
-                val unit = _state.value.quickProductUnit
-                val price = _state.value.quickProductSellingPrice.toDoubleOrNull() ?: 0.0
-                val gst = _state.value.quickProductGstPercent
 
                 if (code.isBlank() || name.isBlank()) {
                     viewModelScope.launch {
@@ -199,87 +276,166 @@ class EstimateViewModel @Inject constructor(
                 }
 
                 viewModelScope.launch {
-                    val product = createProductUseCase(code, name, unit, price, gst)
-                    _state.update { it.copy(showCreateProductDialog = false) }
-                    onEvent(EstimateEvent.SearchProducts(_state.value.searchProductsQuery))
-                    onEvent(EstimateEvent.AddProductToEstimate(product))
+                    // Check for duplicate product
+                    val existing = productRepository.searchProducts(code) + productRepository.searchProducts(name)
+                    val duplicate = existing.firstOrNull {
+                        it.itemCode.equals(code, ignoreCase = true) || it.itemName.equals(name, ignoreCase = true)
+                    }
+
+                    if (duplicate != null) {
+                        _state.update {
+                            it.copy(
+                                showDuplicateProductWarning = true,
+                                duplicateProductWarningMessage = "Possible Duplicate Product Found: '${duplicate.itemName}' (${duplicate.itemCode})."
+                            )
+                        }
+                    } else {
+                        performSaveQuickProduct()
+                    }
                 }
+            }
+            is EstimateEvent.ConfirmSaveDuplicateProduct -> {
+                _state.update { it.copy(showDuplicateProductWarning = false) }
+                performSaveQuickProduct()
+            }
+            is EstimateEvent.DismissDuplicateProductWarning -> {
+                _state.update { it.copy(showDuplicateProductWarning = false) }
             }
             is EstimateEvent.DismissQuickCreateProductDialog -> {
                 _state.update { it.copy(showCreateProductDialog = false) }
             }
-            is EstimateEvent.SaveDraftEstimate -> {
-                if (_state.value.selectedItems.isEmpty()) {
+            is EstimateEvent.ClickCreateCompany -> {
+                _state.update { it.copy(showCreateCompanyDialog = true, quickCompanyName = "") }
+            }
+            is EstimateEvent.UpdateQuickCompanyName -> {
+                _state.update { it.copy(quickCompanyName = event.name) }
+            }
+            is EstimateEvent.SaveQuickCompany -> {
+                val name = _state.value.quickCompanyName
+                if (name.isBlank()) {
                     viewModelScope.launch {
-                        _effect.emit(EstimateEffect.ShowError("No items added to estimate"))
+                        _effect.emit(EstimateEffect.ShowError("Company Name cannot be empty"))
                     }
                     return
                 }
                 viewModelScope.launch {
-                    val timestamp = System.currentTimeMillis()
-                    val format = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault())
-                    val suffix = format.format(Date(timestamp)).takeLast(6)
-                    val estimateNumber = "EST-2026-$suffix"
-
-                    val estimate = Estimate(
+                    val newCompany = com.tirupati.pos.feature.products.domain.model.Company(
                         id = UUID.randomUUID().toString(),
-                        estimateNumber = estimateNumber,
-                        customerName = "Walk-In Customer",
-                        date = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(timestamp)),
-                        time = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestamp)),
-                        status = EstimateStatus.DRAFT,
-                        subtotal = _state.value.subtotal,
-                        itemDiscount = _state.value.itemDiscount,
-                        billDiscount = _state.value.billDiscount,
-                        gstTotal = _state.value.gstTotal,
-                        grandTotal = _state.value.grandTotal
+                        name = name
                     )
-
-                    saveEstimateUseCase(estimate, _state.value.selectedItems)
+                    companyRepository.saveCompany(newCompany)
                     _state.update {
                         it.copy(
-                            selectedItems = emptyList(),
-                            billDiscount = 0.0
+                            showCreateCompanyDialog = false,
+                            quickProductCompanyId = newCompany.id
+                        )
+                    }
+                }
+            }
+            is EstimateEvent.DismissQuickCreateCompanyDialog -> {
+                _state.update { it.copy(showCreateCompanyDialog = false) }
+            }
+            is EstimateEvent.UpdatePrintCustomerName -> {
+                _state.update { it.copy(printCustomerName = event.name) }
+            }
+            is EstimateEvent.UpdatePrintPhoneNumber -> {
+                _state.update { it.copy(printPhoneNumber = event.phone) }
+            }
+            is EstimateEvent.UpdatePrintAddress -> {
+                _state.update { it.copy(printAddress = event.address) }
+            }
+            is EstimateEvent.ClickPrintEstimate -> {
+                _state.update {
+                    it.copy(
+                        showPrintDialog = true,
+                        printCustomerName = it.currentEstimate?.customerName ?: "Walk-In Customer",
+                        printPhoneNumber = it.currentEstimate?.customerPhone ?: "",
+                        printAddress = it.currentEstimate?.customerAddress ?: ""
+                    )
+                }
+            }
+            is EstimateEvent.DismissPrintDialog -> {
+                _state.update { it.copy(showPrintDialog = false) }
+            }
+            is EstimateEvent.ConfirmPrintEstimate -> {
+                val activeEstimate = _state.value.currentEstimate ?: return
+                val custName = if (_state.value.printCustomerName.isNotBlank()) _state.value.printCustomerName else "Walk-In Customer"
+                val updatedEstimate = activeEstimate.copy(
+                    customerName = custName,
+                    customerPhone = _state.value.printPhoneNumber,
+                    customerAddress = _state.value.printAddress,
+                    status = EstimateStatus.PRINTED,
+                    subtotal = _state.value.subtotal,
+                    discountTotal = _state.value.discountTotal,
+                    gstTotal = _state.value.gstTotal,
+                    grandTotal = _state.value.grandTotal,
+                    updatedAt = System.currentTimeMillis()
+                )
+                viewModelScope.launch {
+                    saveEstimateUseCase(updatedEstimate, _state.value.selectedItems)
+                    _state.update {
+                        it.copy(
+                            currentEstimate = updatedEstimate,
+                            showPrintDialog = false,
+                            showPrintPreview = true
+                        )
+                    }
+                }
+            }
+            is EstimateEvent.ClosePrintPreview -> {
+                _state.update {
+                    it.copy(
+                        showPrintPreview = false,
+                        selectedItems = emptyList()
+                    ).recalculateTotals()
+                }
+                viewModelScope.launch {
+                    _effect.emit(EstimateEffect.NavigateToEstimatesList)
+                }
+            }
+            is EstimateEvent.SaveDraftEstimate -> {
+                val activeEstimate = _state.value.currentEstimate ?: return
+                viewModelScope.launch {
+                    val updatedEstimate = activeEstimate.copy(
+                        status = EstimateStatus.DRAFT,
+                        customerName = if (_state.value.printCustomerName.isNotBlank()) _state.value.printCustomerName else activeEstimate.customerName,
+                        customerPhone = _state.value.printPhoneNumber,
+                        customerAddress = _state.value.printAddress,
+                        subtotal = _state.value.subtotal,
+                        discountTotal = _state.value.discountTotal,
+                        gstTotal = _state.value.gstTotal,
+                        grandTotal = _state.value.grandTotal,
+                        updatedAt = System.currentTimeMillis()
+                    )
+
+                    saveEstimateUseCase(updatedEstimate, _state.value.selectedItems)
+                    _state.update {
+                        it.copy(
+                            selectedItems = emptyList()
                         ).recalculateTotals()
                     }
                     _effect.emit(EstimateEffect.NavigateToEstimatesList)
                 }
             }
             is EstimateEvent.SaveAndConvertToInvoice -> {
-                if (_state.value.selectedItems.isEmpty()) {
-                    viewModelScope.launch {
-                        _effect.emit(EstimateEffect.ShowError("No items added to estimate"))
-                    }
-                    return
-                }
+                val activeEstimate = _state.value.currentEstimate ?: return
                 viewModelScope.launch {
-                    val timestamp = System.currentTimeMillis()
-                    val format = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault())
-                    val suffix = format.format(Date(timestamp)).takeLast(6)
-                    val estimateNumber = "EST-2026-$suffix"
-                    val estimateId = UUID.randomUUID().toString()
-
-                    val estimate = Estimate(
-                        id = estimateId,
-                        estimateNumber = estimateNumber,
-                        customerName = "Walk-In Customer",
-                        date = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(timestamp)),
-                        time = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestamp)),
-                        status = EstimateStatus.DRAFT,
+                    val updatedEstimate = activeEstimate.copy(
+                        customerName = if (_state.value.printCustomerName.isNotBlank()) _state.value.printCustomerName else activeEstimate.customerName,
+                        customerPhone = _state.value.printPhoneNumber,
+                        customerAddress = _state.value.printAddress,
                         subtotal = _state.value.subtotal,
-                        itemDiscount = _state.value.itemDiscount,
-                        billDiscount = _state.value.billDiscount,
+                        discountTotal = _state.value.discountTotal,
                         gstTotal = _state.value.gstTotal,
-                        grandTotal = _state.value.grandTotal
+                        grandTotal = _state.value.grandTotal,
+                        updatedAt = System.currentTimeMillis()
                     )
+                    saveEstimateUseCase(updatedEstimate, _state.value.selectedItems)
 
-                    saveEstimateUseCase(estimate, _state.value.selectedItems)
-                    
-                    val invoice = convertToInvoiceUseCase(estimateId)
+                    val invoice = convertToInvoiceUseCase(updatedEstimate.id)
                     _state.update {
                         it.copy(
-                            selectedItems = emptyList(),
-                            billDiscount = 0.0
+                            selectedItems = emptyList()
                         ).recalculateTotals()
                     }
                     if (invoice != null) {
@@ -308,10 +464,46 @@ class EstimateViewModel @Inject constructor(
         }
     }
 
+    private fun performSaveQuickProduct() {
+        val companyId = _state.value.quickProductCompanyId
+        val code = _state.value.quickProductItemCode
+        val name = _state.value.quickProductItemName
+        val unit = _state.value.quickProductUnit
+        val purchase = _state.value.quickProductPurchaseRate.toDoubleOrNull() ?: 0.0
+        val selling = _state.value.quickProductSellingPrice.toDoubleOrNull() ?: 0.0
+        val stock = _state.value.quickProductStockQuantity.toDoubleOrNull() ?: 0.0
+
+        viewModelScope.launch {
+            val newMasterProduct = com.tirupati.pos.feature.products.domain.model.Product(
+                id = UUID.randomUUID().toString(),
+                companyId = companyId,
+                itemCode = code,
+                itemName = name,
+                unit = unit,
+                purchaseRate = purchase,
+                sellingRate = selling,
+                stockQuantity = stock
+            )
+            productRepository.saveProduct(newMasterProduct)
+            
+            _state.update { it.copy(showCreateProductDialog = false) }
+            onEvent(EstimateEvent.SearchProducts(_state.value.searchProductsQuery))
+            onEvent(EstimateEvent.AddProductToEstimate(newMasterProduct))
+        }
+    }
+
     fun loadEstimateDetails(id: String) {
         viewModelScope.launch {
             getEstimateDetailsUseCase(id).collect { estimate ->
-                _state.update { it.copy(currentEstimate = estimate) }
+                _state.update { currentState ->
+                    currentState.copy(
+                        currentEstimate = estimate,
+                        selectedItems = estimate?.items ?: emptyList(),
+                        printCustomerName = estimate?.customerName ?: "",
+                        printPhoneNumber = estimate?.customerPhone ?: "",
+                        printAddress = estimate?.customerAddress ?: ""
+                    ).recalculateTotals()
+                }
             }
         }
     }
@@ -324,23 +516,54 @@ class EstimateViewModel @Inject constructor(
         }
     }
 
+    fun clearActiveEstimate() {
+        _state.update {
+            it.copy(
+                currentEstimate = null,
+                selectedItems = emptyList(),
+                stockWarnings = emptyMap(),
+                printCustomerName = "",
+                printPhoneNumber = "",
+                printAddress = ""
+            ).recalculateTotals()
+        }
+    }
+
+    private fun generateNextEstimateNumber(estimates: List<Estimate>): String {
+        var maxSerial = 0
+        estimates.forEach { est ->
+            val numStr = est.estimateNumber
+            val lastDigits = numStr.substringAfterLast("-").toIntOrNull()
+            if (lastDigits != null && lastDigits > maxSerial) {
+                maxSerial = lastDigits
+            } else {
+                val digits = numStr.filter { it.isDigit() }.toIntOrNull()
+                if (digits != null && digits > maxSerial) {
+                    maxSerial = digits
+                }
+            }
+        }
+        val nextSerial = maxSerial + 1
+        return String.format("EST-%04d", nextSerial)
+    }
+
     private fun EstimateUiState.recalculateTotals(): EstimateUiState {
-        val sub = selectedItems.sumOf { it.quantity * it.rate }
-        val itemDisc = selectedItems.sumOf {
-            val raw = it.quantity * it.rate
+        val sub = selectedItems.sumOf { it.quantity * it.sellingRate }
+        val disc = selectedItems.sumOf {
+            val raw = it.quantity * it.sellingRate
             val pDisc = raw * (it.discountPercent / 100.0)
             pDisc + it.discountAmount
         }
         val gst = selectedItems.sumOf {
-            val raw = it.quantity * it.rate
+            val raw = it.quantity * it.sellingRate
             val pDisc = raw * (it.discountPercent / 100.0)
             val taxable = (raw - pDisc - it.discountAmount).coerceAtLeast(0.0)
             taxable * (it.gstPercent / 100.0)
         }
-        val grand = (sub - itemDisc - billDiscount + gst).coerceAtLeast(0.0)
+        val grand = (sub - disc + gst).coerceAtLeast(0.0)
         return this.copy(
             subtotal = sub,
-            itemDiscount = itemDisc,
+            discountTotal = disc,
             gstTotal = gst,
             grandTotal = grand
         )

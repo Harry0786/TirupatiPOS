@@ -5,16 +5,14 @@ import com.tirupati.pos.core.sync.SyncManager
 import com.tirupati.pos.core.sync.SyncQueue
 import com.tirupati.pos.feature.sales.data.local.EstimateDao
 import com.tirupati.pos.feature.sales.data.local.InvoiceDao
-import com.tirupati.pos.feature.sales.data.local.ProductDao
 import com.tirupati.pos.feature.sales.data.mapper.toDomain
 import com.tirupati.pos.feature.sales.data.mapper.toLocal
 import com.tirupati.pos.feature.sales.domain.model.Estimate
 import com.tirupati.pos.feature.sales.domain.model.EstimateItem
 import com.tirupati.pos.feature.sales.domain.model.Invoice
-import com.tirupati.pos.feature.sales.domain.model.Product
+import com.tirupati.pos.feature.products.domain.model.Product
 import com.tirupati.pos.feature.sales.domain.repository.SalesRepository
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
 import java.util.UUID
@@ -25,28 +23,11 @@ import javax.inject.Singleton
 class SalesRepositoryImpl @Inject constructor(
     private val estimateDao: EstimateDao,
     private val invoiceDao: InvoiceDao,
-    private val productDao: ProductDao,
+    private val productRepository: com.tirupati.pos.feature.products.domain.repository.ProductRepository,
+    private val companyRepository: com.tirupati.pos.feature.products.domain.repository.CompanyRepository,
     private val syncQueue: SyncQueue,
     private val syncManager: SyncManager
 ) : SalesRepository {
-
-    init {
-        // Run seed in a background scope or simply block temporarily since it's local
-        // To be safe, we will seed on demand or inside initialize
-    }
-
-    suspend fun seedPlaceholderProductsIfEmpty() {
-        if (productDao.getProductCount() == 0) {
-            val placeholders = listOf(
-                Product(UUID.randomUUID().toString(), "LB12", "LED Bulb", "Pcs", 120.0, 12.0),
-                Product(UUID.randomUUID().toString(), "WR01", "Copper Wire", "Roll", 850.0, 18.0),
-                Product(UUID.randomUUID().toString(), "SW02", "Modular Switch 6A", "Pcs", 45.0, 18.0),
-                Product(UUID.randomUUID().toString(), "PL03", "3 Pin Plug 16A", "Pcs", 75.0, 18.0),
-                Product(UUID.randomUUID().toString(), "FN04", "Ceiling Fan 48\"", "Pcs", 2400.0, 28.0)
-            )
-            productDao.insertProducts(placeholders.map { it.toLocal() })
-        }
-    }
 
     override fun observeEstimates(): Flow<List<Estimate>> =
         estimateDao.observeEstimates().map { list ->
@@ -160,27 +141,13 @@ class SalesRepositoryImpl @Inject constructor(
     }
 
     override fun observeProducts(): Flow<List<Product>> =
-        productDao.observeProducts().map { list -> list.map { it.toDomain() } }
+        productRepository.observeProducts()
 
-    override suspend fun searchProducts(query: String): List<Product> {
-        seedPlaceholderProductsIfEmpty()
-        return productDao.searchProducts(query).map { it.toDomain() }
-    }
+    override suspend fun searchProducts(query: String): List<Product> =
+        productRepository.searchProducts(query)
 
     override suspend fun saveProduct(product: Product) {
-        productDao.insert(product.toLocal())
-
-        // Queue Sync Operation
-        val op = PendingOperation(
-            id = UUID.randomUUID().toString(),
-            operationType = "INSERT",
-            entityType = "products",
-            entityId = product.id,
-            payloadJson = Json.encodeToString(Product.serializer(), product),
-            timestamp = System.currentTimeMillis()
-        )
-        syncQueue.enqueue(op)
-        syncManager.requestSync()
+        productRepository.saveProduct(product)
     }
 
     override fun observeSalesForDate(date: String): Flow<Double> {

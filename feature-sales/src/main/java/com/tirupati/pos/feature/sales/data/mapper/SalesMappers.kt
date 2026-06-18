@@ -6,24 +6,23 @@ import com.tirupati.pos.feature.sales.domain.model.EstimateStatus
 import com.tirupati.pos.feature.sales.domain.model.Invoice
 import com.tirupati.pos.feature.sales.domain.model.InvoiceItem
 import com.tirupati.pos.feature.sales.domain.model.InvoiceStatus
-import com.tirupati.pos.feature.sales.domain.model.Product
 import com.tirupati.pos.feature.sales.data.local.LocalEstimate
 import com.tirupati.pos.feature.sales.data.local.LocalEstimateItem
 import com.tirupati.pos.feature.sales.data.local.LocalInvoice
 import com.tirupati.pos.feature.sales.data.local.LocalInvoiceItem
-import com.tirupati.pos.feature.sales.data.local.LocalProduct
 
 fun LocalEstimate.toDomain(items: List<LocalEstimateItem>): Estimate {
     return Estimate(
         id = id,
         estimateNumber = estimateNumber,
         customerName = customerName,
+        customerPhone = customerPhone,
+        customerAddress = customerAddress,
         date = date,
         time = time,
         status = try { EstimateStatus.valueOf(status) } catch (e: Exception) { EstimateStatus.DRAFT },
         subtotal = subtotal,
-        itemDiscount = itemDiscount,
-        billDiscount = billDiscount,
+        discountTotal = discountTotal,
         gstTotal = gstTotal,
         grandTotal = grandTotal,
         items = items.map { it.toDomain() },
@@ -36,16 +35,20 @@ fun LocalEstimateItem.toDomain(): EstimateItem {
     return EstimateItem(
         id = id,
         estimateId = estimateId,
+        productId = productId,
         srNo = srNo,
         itemCode = itemCode,
         itemName = itemName,
         quantity = quantity,
         unit = unit,
-        rate = rate,
+        purchaseRate = purchaseRate,
+        sellingRate = sellingRate,
         discountPercent = discountPercent,
         discountAmount = discountAmount,
         gstPercent = gstPercent,
-        amount = amount
+        lineTotal = lineTotal,
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 }
 
@@ -54,12 +57,13 @@ fun Estimate.toLocal(): LocalEstimate {
         id = id,
         estimateNumber = estimateNumber,
         customerName = customerName,
+        customerPhone = customerPhone,
+        customerAddress = customerAddress,
         date = date,
         time = time,
         status = status.name,
         subtotal = subtotal,
-        itemDiscount = itemDiscount,
-        billDiscount = billDiscount,
+        discountTotal = discountTotal,
         gstTotal = gstTotal,
         grandTotal = grandTotal,
         createdAt = createdAt,
@@ -71,16 +75,20 @@ fun EstimateItem.toLocal(): LocalEstimateItem {
     return LocalEstimateItem(
         id = id,
         estimateId = estimateId,
+        productId = productId,
         srNo = srNo,
         itemCode = itemCode,
         itemName = itemName,
         quantity = quantity,
         unit = unit,
-        rate = rate,
+        purchaseRate = purchaseRate,
+        sellingRate = sellingRate,
         discountPercent = discountPercent,
         discountAmount = discountAmount,
         gstPercent = gstPercent,
-        amount = amount
+        lineTotal = lineTotal,
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 }
 
@@ -90,12 +98,13 @@ fun LocalInvoice.toDomain(items: List<LocalInvoiceItem>): Invoice {
         estimateId = estimateId,
         invoiceNumber = invoiceNumber,
         customerName = customerName,
+        customerPhone = customerPhone,
+        customerAddress = customerAddress,
         date = date,
         time = time,
         status = try { InvoiceStatus.valueOf(status) } catch (e: Exception) { InvoiceStatus.PENDING },
         subtotal = subtotal,
-        itemDiscount = itemDiscount,
-        billDiscount = billDiscount,
+        discountTotal = discountTotal,
         gstTotal = gstTotal,
         grandTotal = grandTotal,
         paymentMethod = paymentMethod,
@@ -109,16 +118,20 @@ fun LocalInvoiceItem.toDomain(): InvoiceItem {
     return InvoiceItem(
         id = id,
         invoiceId = invoiceId,
+        productId = productId,
         srNo = srNo,
         itemCode = itemCode,
         itemName = itemName,
         quantity = quantity,
         unit = unit,
-        rate = rate,
+        purchaseRate = purchaseRate,
+        sellingRate = sellingRate,
         discountPercent = discountPercent,
         discountAmount = discountAmount,
         gstPercent = gstPercent,
-        amount = amount
+        lineTotal = lineTotal,
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 }
 
@@ -128,12 +141,13 @@ fun Invoice.toLocal(): LocalInvoice {
         estimateId = estimateId,
         invoiceNumber = invoiceNumber,
         customerName = customerName,
+        customerPhone = customerPhone,
+        customerAddress = customerAddress,
         date = date,
         time = time,
         status = status.name,
         subtotal = subtotal,
-        itemDiscount = itemDiscount,
-        billDiscount = billDiscount,
+        discountTotal = discountTotal,
         gstTotal = gstTotal,
         grandTotal = grandTotal,
         paymentMethod = paymentMethod,
@@ -146,37 +160,19 @@ fun InvoiceItem.toLocal(invoiceId: String): LocalInvoiceItem {
     return LocalInvoiceItem(
         id = id,
         invoiceId = invoiceId,
+        productId = productId,
         srNo = srNo,
         itemCode = itemCode,
         itemName = itemName,
         quantity = quantity,
         unit = unit,
-        rate = rate,
+        purchaseRate = purchaseRate,
+        sellingRate = sellingRate,
         discountPercent = discountPercent,
         discountAmount = discountAmount,
         gstPercent = gstPercent,
-        amount = amount
-    )
-}
-
-fun LocalProduct.toDomain(): Product {
-    return Product(
-        id = id,
-        itemCode = itemCode,
-        itemName = itemName,
-        unit = unit,
-        sellingPrice = sellingPrice,
-        gstPercent = gstPercent
-    )
-}
-
-fun Product.toLocal(): LocalProduct {
-    return LocalProduct(
-        id = id,
-        itemCode = itemCode,
-        itemName = itemName,
-        unit = unit,
-        sellingPrice = sellingPrice,
-        gstPercent = gstPercent
+        lineTotal = lineTotal,
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 }

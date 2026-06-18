@@ -8,14 +8,12 @@ import androidx.room.RoomDatabase
         LocalEstimate::class,
         LocalEstimateItem::class,
         LocalInvoice::class,
-        LocalInvoiceItem::class,
-        LocalProduct::class
+        LocalInvoiceItem::class
     ],
-    version = 1,
+    version = 5,
     exportSchema = false
 )
 abstract class SalesDatabase : RoomDatabase() {
     abstract fun estimateDao(): EstimateDao
     abstract fun invoiceDao(): InvoiceDao
-    abstract fun productDao(): ProductDao
 }

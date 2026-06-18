@@ -13,6 +13,9 @@ interface PendingOperationDao : BaseDao<PendingOperation> {
     @Query("SELECT * FROM pending_operations ORDER BY timestamp ASC")
     suspend fun getAll(): List<PendingOperation>
 
+    @Query("SELECT * FROM pending_operations ORDER BY timestamp ASC LIMIT :limit")
+    suspend fun getBatch(limit: Int): List<PendingOperation>
+
     @Query("DELETE FROM pending_operations WHERE id = :id")
     suspend fun removeById(id: String)
 }

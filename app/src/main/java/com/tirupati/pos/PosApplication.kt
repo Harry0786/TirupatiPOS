@@ -12,12 +12,12 @@ import com.tirupati.pos.feature.products.data.repository.InsertMockData
 class PosApplication : Application(), Configuration.Provider {
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var syncScheduler: SyncScheduler
-    @Inject lateinit var mockDataInserter: InsertMockData
+    @Inject lateinit var insertMockData: InsertMockData
 
     override fun onCreate() {
         super.onCreate()
-        mockDataInserter.seedIfEmpty()
         syncScheduler.schedulePeriodicSync()
+        insertMockData.seedIfEmpty()
     }
 
     override val workManagerConfiguration: Configuration

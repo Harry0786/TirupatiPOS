@@ -25,6 +25,9 @@ interface EstimateDao : BaseDao<LocalEstimate> {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItems(items: List<LocalEstimateItem>)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEstimates(estimates: List<LocalEstimate>)
+
     @Query("DELETE FROM estimate_items WHERE estimateId = :estimateId")
     suspend fun deleteItems(estimateId: String)
 
@@ -46,6 +49,9 @@ interface EstimateDao : BaseDao<LocalEstimate> {
 
     @Query("DELETE FROM estimates WHERE id IN (:ids)")
     suspend fun deleteByIds(ids: List<String>)
+
+    @Query("DELETE FROM estimate_items WHERE estimateId IN (:ids)")
+    suspend fun deleteItemsByIds(ids: List<String>)
 }
 
 @Dao
@@ -61,6 +67,9 @@ interface InvoiceDao : BaseDao<LocalInvoice> {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItems(items: List<LocalInvoiceItem>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertInvoices(invoices: List<LocalInvoice>)
 
     @Query("DELETE FROM invoice_items WHERE invoiceId = :invoiceId")
     suspend fun deleteItems(invoiceId: String)
@@ -81,6 +90,9 @@ interface InvoiceDao : BaseDao<LocalInvoice> {
     @Query("DELETE FROM invoices WHERE id IN (:ids)")
     suspend fun deleteByIds(ids: List<String>)
 
+    @Query("DELETE FROM invoice_items WHERE invoiceId IN (:ids)")
+    suspend fun deleteItemsByIds(ids: List<String>)
+
     @Query("SELECT SUM(grandTotal) FROM invoices WHERE date = :date")
     fun observeSalesForDate(date: String): Flow<Double?>
 
@@ -95,19 +107,4 @@ interface InvoiceDao : BaseDao<LocalInvoice> {
 
     @Query("SELECT * FROM invoices ORDER BY createdAt DESC LIMIT :limit")
     fun observeRecentInvoices(limit: Int = 5): Flow<List<LocalInvoice>>
-}
-
-@Dao
-interface ProductDao : BaseDao<LocalProduct> {
-    @Query("SELECT * FROM local_products ORDER BY itemName ASC")
-    fun observeProducts(): Flow<List<LocalProduct>>
-
-    @Query("SELECT * FROM local_products WHERE itemCode LIKE '%' || :query || '%' OR itemName LIKE '%' || :query || '%'")
-    suspend fun searchProducts(query: String): List<LocalProduct>
-
-    @Query("SELECT COUNT(*) FROM local_products")
-    suspend fun getProductCount(): Int
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertProducts(products: List<LocalProduct>)
 }

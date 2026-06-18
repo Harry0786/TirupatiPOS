@@ -30,7 +30,9 @@ object ProductsDatabaseModule {
             context,
             ProductsDatabase::class.java,
             "products_db"
-        ).build()
+        )
+        .fallbackToDestructiveMigration()
+        .build()
     }
 
     @Provides
@@ -59,8 +61,4 @@ abstract class ProductsRepositoryModule {
     abstract fun bindProductRepository(
         productRepositoryImpl: ProductRepositoryImpl
     ): ProductRepository
-
-    @Binds
-    @dagger.multibindings.IntoSet
-    abstract fun bindProductsSyncHandler(impl: com.tirupati.pos.feature.products.sync.ProductsSyncHandler): com.tirupati.pos.core.sync.DownwardSyncHandler
 }

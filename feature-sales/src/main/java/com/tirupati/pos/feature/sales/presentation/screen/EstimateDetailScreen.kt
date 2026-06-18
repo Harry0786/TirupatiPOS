@@ -159,10 +159,10 @@ fun EstimateDetailContent(
                             TableCell(text = item.itemName, weight = 2.5f)
                             TableCell(text = item.quantity.toString(), weight = 1.0f, alignRight = true)
                             TableCell(text = item.unit, weight = 1.0f)
-                            TableCell(text = String.format("%.2f", item.rate), weight = 1.2f, alignRight = true)
+                            TableCell(text = String.format("%.2f", item.sellingRate), weight = 1.2f, alignRight = true)
                             TableCell(text = String.format("%.1f", item.discountPercent), weight = 1.2f, alignRight = true)
                             TableCell(text = "${item.gstPercent.toInt()}%", weight = 1.0f, alignRight = true)
-                            TableCell(text = String.format("%.2f", item.amount), weight = 1.6f, alignRight = true)
+                            TableCell(text = String.format("%.2f", item.lineTotal), weight = 1.6f, alignRight = true)
                         }
                     }
                 }
@@ -180,12 +180,9 @@ fun EstimateDetailContent(
             EstimateSummaryCard(
                 itemsCount = estimate.items.size,
                 subtotal = estimate.subtotal,
-                itemDiscount = estimate.itemDiscount,
-                billDiscount = estimate.billDiscount,
+                discountTotal = estimate.discountTotal,
                 gstTotal = estimate.gstTotal,
                 grandTotal = estimate.grandTotal,
-                onBillDiscountChange = {},
-                editable = false,
                 modifier = Modifier.weight(1.3f)
             )
 
@@ -195,7 +192,7 @@ fun EstimateDetailContent(
                     .padding(bottom = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                val canConvert = estimate.status == EstimateStatus.DRAFT || estimate.status == EstimateStatus.APPROVED
+                val canConvert = estimate.status == EstimateStatus.DRAFT || estimate.status == EstimateStatus.PRINTED
                 Button(
                     onClick = { onConvertToInvoiceClick(estimate.id) },
                     enabled = canConvert,
@@ -205,7 +202,7 @@ fun EstimateDetailContent(
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
-                        text = if (canConvert) "Convert to Invoice" else "Already Converted",
+                        text = if (canConvert) "Convert to Invoice" else "Converted to Invoice",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.bodyLarge
                     )

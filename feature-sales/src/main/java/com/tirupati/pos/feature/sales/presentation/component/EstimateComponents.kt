@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.tirupati.pos.feature.sales.domain.model.Estimate
 import com.tirupati.pos.feature.sales.domain.model.EstimateItem
-import com.tirupati.pos.feature.sales.domain.model.Product
+import com.tirupati.pos.feature.products.domain.model.Product
 
 @Composable
 fun EstimateHeaderCard(
@@ -75,9 +75,9 @@ fun EstimateHeaderCard(
                             .background(
                                 when (status.uppercase()) {
                                     "DRAFT" -> Color(0xFFFEF3C7)
-                                    "APPROVED" -> Color(0xFFD1FAE5)
-                                    "INVOICE" -> Color(0xFFDBEAFE)
-                                    "PAID" -> Color(0xFFE0F2FE)
+                                    "PRINTED" -> Color(0xFFD1FAE5)
+                                    "CONVERTED" -> Color(0xFFDBEAFE)
+                                    "CANCELLED" -> Color(0xFFFEE2E2)
                                     else -> Color(0xFFF3F4F6)
                                 }
                             )
@@ -89,9 +89,9 @@ fun EstimateHeaderCard(
                             fontWeight = FontWeight.Bold,
                             color = when (status.uppercase()) {
                                 "DRAFT" -> Color(0xFFD97706)
-                                "APPROVED" -> Color(0xFF059669)
-                                "INVOICE" -> Color(0xFF2563EB)
-                                "PAID" -> Color(0xFF0284C7)
+                                "PRINTED" -> Color(0xFF059669)
+                                "CONVERTED" -> Color(0xFF2563EB)
+                                "CANCELLED" -> Color(0xFFDC2626)
                                 else -> Color(0xFF4B5563)
                             }
                         )
@@ -223,12 +223,12 @@ fun ProductSearchPanel(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
-                                        text = "Rate: ₹${product.sellingPrice}",
+                                        text = "Rate: ₹${product.sellingRate}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = Color(0xFF4B5563)
                                     )
                                     Text(
-                                        text = "Stock: ${product.stock} ${product.unit}",
+                                        text = "Stock: ${product.stockQuantity.toInt()} ${product.unit}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = Color(0xFF059669),
                                         fontWeight = FontWeight.Medium
@@ -247,6 +247,7 @@ fun ProductSearchPanel(
 fun EstimateTable(
     items: List<EstimateItem>,
     onRowClick: (EstimateItem) -> Unit,
+    stockWarnings: Map<String, String> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -265,7 +266,7 @@ fun EstimateTable(
             // Header Row
             Row(
                 modifier = Modifier
-                    .width(1000.dp)
+                    .width(1150.dp)
                     .background(Color(0xFFF9FAFB))
                     .border(width = 1.dp, color = Color(0xFFE5E7EB), shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
                     .padding(vertical = 14.dp, horizontal = 16.dp),
@@ -276,6 +277,7 @@ fun EstimateTable(
                 TableCell(text = "Item Name", weight = 2.5f, isHeader = true)
                 TableCell(text = "Qty", weight = 1.0f, isHeader = true, alignRight = true)
                 TableCell(text = "Unit", weight = 1.0f, isHeader = true)
+                TableCell(text = "P. Rate (₹)", weight = 1.2f, isHeader = true, alignRight = true)
                 TableCell(text = "Rate (₹)", weight = 1.2f, isHeader = true, alignRight = true)
                 TableCell(text = "Disc %", weight = 1.2f, isHeader = true, alignRight = true)
                 TableCell(text = "Disc ₹", weight = 1.2f, isHeader = true, alignRight = true)
@@ -286,7 +288,7 @@ fun EstimateTable(
             if (items.isEmpty()) {
                 Box(
                     modifier = Modifier
-                        .width(1000.dp)
+                        .width(1150.dp)
                         .height(150.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -297,26 +299,44 @@ fun EstimateTable(
                     )
                 }
             } else {
-                Column(modifier = Modifier.width(1000.dp)) {
+                Column(modifier = Modifier.width(1150.dp)) {
                     items.forEach { item ->
-                        Row(
+                        val hasWarning = stockWarnings.containsKey(item.itemCode)
+                        val rowBgColor = if (hasWarning) Color(0xFFFFFBEB) else Color.White
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .border(width = 0.5.dp, color = Color(0xFFF3F4F6))
+                                .background(rowBgColor)
                                 .clickable { onRowClick(item) }
-                                .padding(vertical = 12.dp, horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            TableCell(text = item.srNo.toString(), weight = 0.8f)
-                            TableCell(text = item.itemCode, weight = 1.5f)
-                            TableCell(text = item.itemName, weight = 2.5f)
-                            TableCell(text = item.quantity.toString(), weight = 1.0f, alignRight = true)
-                            TableCell(text = item.unit, weight = 1.0f)
-                            TableCell(text = String.format("%.2f", item.rate), weight = 1.2f, alignRight = true)
-                            TableCell(text = String.format("%.1f", item.discountPercent), weight = 1.2f, alignRight = true)
-                            TableCell(text = String.format("%.2f", item.discountAmount), weight = 1.2f, alignRight = true)
-                            TableCell(text = "${item.gstPercent.toInt()}%", weight = 1.0f, alignRight = true)
-                            TableCell(text = String.format("%.2f", item.amount), weight = 1.6f, alignRight = true)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(width = 0.5.dp, color = Color(0xFFF3F4F6))
+                                    .padding(vertical = 12.dp, horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TableCell(text = item.srNo.toString(), weight = 0.8f)
+                                TableCell(text = item.itemCode, weight = 1.5f)
+                                TableCell(text = item.itemName, weight = 2.5f)
+                                TableCell(text = item.quantity.toString(), weight = 1.0f, alignRight = true)
+                                TableCell(text = item.unit, weight = 1.0f)
+                                TableCell(text = String.format("%.2f", item.purchaseRate), weight = 1.2f, alignRight = true)
+                                TableCell(text = String.format("%.2f", item.sellingRate), weight = 1.2f, alignRight = true)
+                                TableCell(text = String.format("%.1f", item.discountPercent), weight = 1.2f, alignRight = true)
+                                TableCell(text = String.format("%.2f", item.discountAmount), weight = 1.2f, alignRight = true)
+                                TableCell(text = "${item.gstPercent.toInt()}%", weight = 1.0f, alignRight = true)
+                                TableCell(text = String.format("%.2f", item.lineTotal), weight = 1.6f, alignRight = true)
+                            }
+                            if (hasWarning) {
+                                Text(
+                                    text = stockWarnings[item.itemCode] ?: "",
+                                    color = Color(0xFFD97706),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(start = 64.dp, bottom = 8.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -348,16 +368,11 @@ fun RowScope.TableCell(
 fun EstimateSummaryCard(
     itemsCount: Int,
     subtotal: Double,
-    itemDiscount: Double,
-    billDiscount: Double,
+    discountTotal: Double,
     gstTotal: Double,
     grandTotal: Double,
-    onBillDiscountChange: (Double) -> Unit,
-    modifier: Modifier = Modifier,
-    editable: Boolean = true
+    modifier: Modifier = Modifier
 ) {
-    var discountInput by remember(billDiscount) { mutableStateOf(if (billDiscount > 0) billDiscount.toString() else "") }
-
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
@@ -375,43 +390,7 @@ fun EstimateSummaryCard(
             
             SummaryRow(label = "Items Count", value = itemsCount.toString())
             SummaryRow(label = "Subtotal", value = String.format("₹%.2f", subtotal))
-            SummaryRow(label = "Item Discount", value = String.format("- ₹%.2f", itemDiscount), valueColor = Color(0xFFDC2626))
-            
-            if (editable) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Bill Discount (Flat)",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF4B5563)
-                    )
-                    OutlinedTextField(
-                        value = discountInput,
-                        onValueChange = {
-                            discountInput = it
-                            val amt = it.toDoubleOrNull() ?: 0.0
-                            onBillDiscountChange(amt)
-                        },
-                        modifier = Modifier.width(100.dp),
-                        placeholder = { Text("0.00") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        shape = RoundedCornerShape(6.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = Color(0xFFD1D5DB)
-                        )
-                    )
-                }
-            } else {
-                SummaryRow(label = "Bill Discount", value = String.format("- ₹%.2f", billDiscount), valueColor = Color(0xFFDC2626))
-            }
-            
+            SummaryRow(label = "Item Discount Total", value = String.format("- ₹%.2f", discountTotal), valueColor = Color(0xFFDC2626))
             SummaryRow(label = "GST Total", value = String.format("₹%.2f", gstTotal))
             
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE5E7EB))
@@ -473,7 +452,7 @@ fun EstimateItemBottomSheet(
     onDelete: () -> Unit
 ) {
     var quantity by remember { mutableStateOf(item.quantity.toString()) }
-    var rate by remember { mutableStateOf(item.rate.toString()) }
+    var rate by remember { mutableStateOf(item.sellingRate.toString()) }
     var discPercent by remember { mutableStateOf(item.discountPercent.toString()) }
     var discAmount by remember { mutableStateOf(item.discountAmount.toString()) }
     var gstPercent by remember { mutableStateOf(item.gstPercent) }
@@ -643,25 +622,35 @@ fun EstimateItemBottomSheet(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuickCreateProductDialog(
+    companies: List<com.tirupati.pos.feature.products.domain.model.Company>,
+    selectedCompanyId: String,
+    onCompanyIdChange: (String) -> Unit,
+    onAddCompanyClick: () -> Unit,
     itemCode: String,
     onItemCodeChange: (String) -> Unit,
     itemName: String,
     onItemNameChange: (String) -> Unit,
     unit: String,
     onUnitChange: (String) -> Unit,
+    purchaseRate: String,
+    onPurchaseRateChange: (String) -> Unit,
     sellingPrice: String,
     onSellingPriceChange: (String) -> Unit,
-    gstPercent: Double,
-    onGstPercentChange: (Double) -> Unit,
+    stockQuantity: String,
+    onStockQuantityChange: (String) -> Unit,
     onSave: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    var dropdownExpanded by remember { mutableStateOf(false) }
+    val selectedCompany = companies.find { it.id == selectedCompanyId }
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxWidth(0.9f)
                 .padding(16.dp),
             shape = RoundedCornerShape(12.dp)
         ) {
@@ -678,22 +667,72 @@ fun QuickCreateProductDialog(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                OutlinedTextField(
-                    value = itemCode,
-                    onValueChange = onItemCodeChange,
-                    label = { Text("Item Code") },
+                // Company Selector Row
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        OutlinedTextField(
+                            value = selectedCompany?.name ?: "Select Company",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Company") },
+                            modifier = Modifier.fillMaxWidth(),
+                            trailingIcon = {
+                                IconButton(onClick = { dropdownExpanded = true }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = "Expand Companies"
+                                    )
+                                }
+                            }
+                        )
+                        DropdownMenu(
+                            expanded = dropdownExpanded,
+                            onDismissRequest = { dropdownExpanded = false }
+                        ) {
+                            companies.forEach { company ->
+                                DropdownMenuItem(
+                                    text = { Text(company.name) },
+                                    onClick = {
+                                        onCompanyIdChange(company.id)
+                                        dropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    Button(
+                        onClick = onAddCompanyClick,
+                        modifier = Modifier.padding(top = 8.dp),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("+ Company")
+                    }
+                }
                 Spacer(modifier = Modifier.height(12.dp))
 
-                OutlinedTextField(
-                    value = itemName,
-                    onValueChange = onItemNameChange,
-                    label = { Text("Item Name") },
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedTextField(
+                        value = itemCode,
+                        onValueChange = onItemCodeChange,
+                        label = { Text("Item Code") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = itemName,
+                        onValueChange = onItemNameChange,
+                        label = { Text("Item Name") },
+                        modifier = Modifier.weight(1.5f),
+                        singleLine = true
+                    )
+                }
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
@@ -704,50 +743,36 @@ fun QuickCreateProductDialog(
                         value = unit,
                         onValueChange = onUnitChange,
                         label = { Text("Unit") },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(0.8f),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = purchaseRate,
+                        onValueChange = onPurchaseRateChange,
+                        label = { Text("Purchase Rate (₹)") },
+                        modifier = Modifier.weight(1.2f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true
                     )
                     OutlinedTextField(
                         value = sellingPrice,
                         onValueChange = onSellingPriceChange,
-                        label = { Text("Selling Price (₹)") },
-                        modifier = Modifier.weight(1f),
+                        label = { Text("Selling Rate (₹)") },
+                        modifier = Modifier.weight(1.2f),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true
                     )
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                Text(
-                    text = "GST Rate",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
+                OutlinedTextField(
+                    value = stockQuantity,
+                    onValueChange = onStockQuantityChange,
+                    label = { Text("Initial Stock Qty") },
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    listOf(0.0, 5.0, 12.0, 18.0, 28.0).forEach { rateVal ->
-                        val isSelected = gstPercent == rateVal
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFFF3F4F6))
-                                .clickable { onGstPercentChange(rateVal) }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "${rateVal.toInt()}%",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isSelected) Color.White else Color(0xFF374151)
-                            )
-                        }
-                    }
-                }
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Row(
@@ -765,4 +790,332 @@ fun QuickCreateProductDialog(
             }
         }
     }
+}
+
+@Composable
+fun QuickCreateCompanyDialog(
+    name: String,
+    onNameChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.8f)
+                .padding(16.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+            ) {
+                Text(
+                    text = "Quick Create Company",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = onNameChange,
+                    label = { Text("Company Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(onClick = onSave) {
+                        Text("Save Company")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PrintEstimateDialog(
+    customerName: String,
+    onCustomerNameChange: (String) -> Unit,
+    phoneNumber: String,
+    onPhoneNumberChange: (String) -> Unit,
+    address: String,
+    onAddressChange: (String) -> Unit,
+    onConfirmPrint: () -> Unit,
+    onSkipPrint: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.85f)
+                .padding(16.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+            ) {
+                Text(
+                    text = "Prepare printed receipt details",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Optional fields: skipped details will default to Walk-In Customer.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = customerName,
+                    onValueChange = onCustomerNameChange,
+                    label = { Text("Customer Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = phoneNumber,
+                    onValueChange = onPhoneNumberChange,
+                    label = { Text("Phone Number") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = address,
+                    onValueChange = onAddressChange,
+                    label = { Text("Address") },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 2
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                    Row {
+                        OutlinedButton(
+                            onClick = onSkipPrint,
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Skip & Print")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = onConfirmPrint,
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Save & Print")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PrintPreviewDialog(
+    estimate: Estimate,
+    items: List<EstimateItem>,
+    customerPhone: String = "",
+    customerAddress: String = "",
+    onClose: () -> Unit
+) {
+    Dialog(onDismissRequest = onClose) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.9f)
+                .padding(12.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp)
+            ) {
+                Text(
+                    text = "Printed Receipt Preview (Draft Invoice)",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.DarkGray
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Receipt Paper Outline
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .border(1.dp, Color(0xFFCCCCCC), RoundedCornerShape(8.dp)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFAFAFA))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp)
+                    ) {
+                        // Header
+                        Text(
+                            text = "TIRUPATI ELECTRICALS",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            text = "Counter POS Billing • Tirupati Electricals Store",
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Color.Gray
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                        // Details
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Column {
+                                Text("Estimate No: ${estimate.estimateNumber}", fontWeight = FontWeight.Bold)
+                                Text("Customer: ${estimate.customerName}")
+                                if (customerPhone.isNotBlank()) Text("Phone: $customerPhone")
+                                if (customerAddress.isNotBlank()) Text("Address: $customerAddress")
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("Date: ${estimate.date}")
+                                Text("Time: ${estimate.time}")
+                                Text("Status: PRINTED", fontWeight = FontWeight.SemiBold, color = Color(0xFF059669))
+                            }
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                        // Items list Table (NO PURCHASE RATE OR STOCK QUANTITY IS PRINTED HERE)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFEEEEEE))
+                                .padding(6.dp)
+                        ) {
+                            Text("Sr", modifier = Modifier.weight(0.5f), fontWeight = FontWeight.Bold)
+                            Text("Code", modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold)
+                            Text("Item Name", modifier = Modifier.weight(3f), fontWeight = FontWeight.Bold)
+                            Text("Qty", modifier = Modifier.weight(0.8f), fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
+                            Text("Unit", modifier = Modifier.weight(0.8f), fontWeight = FontWeight.Bold)
+                            Text("Rate", modifier = Modifier.weight(1.2f), fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
+                            Text("Disc %", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
+                            Text("GST", modifier = Modifier.weight(0.8f), fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
+                            Text("Amount", modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
+                        }
+
+                        LazyColumn(modifier = Modifier.weight(1f)) {
+                            items(items) { item ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp, horizontal = 6.dp)
+                                ) {
+                                    Text(item.srNo.toString(), modifier = Modifier.weight(0.5f))
+                                    Text(item.itemCode, modifier = Modifier.weight(1.5f))
+                                    Text(item.itemName, modifier = Modifier.weight(3f))
+                                    Text(item.quantity.toString(), modifier = Modifier.weight(0.8f), textAlign = TextAlign.End)
+                                    Text(item.unit, modifier = Modifier.weight(0.8f))
+                                    Text(String.format("₹%.2f", item.sellingRate), modifier = Modifier.weight(1.2f), textAlign = TextAlign.End)
+                                    Text(String.format("%.1f", item.discountPercent), modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+                                    Text("${item.gstPercent.toInt()}%", modifier = Modifier.weight(0.8f), textAlign = TextAlign.End)
+                                    Text(String.format("₹%.2f", item.lineTotal), modifier = Modifier.weight(1.5f), textAlign = TextAlign.End)
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                        // Totals
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Spacer(modifier = Modifier.weight(1f))
+                            Column(modifier = Modifier.width(260.dp)) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Subtotal:")
+                                    Text(String.format("₹%.2f", estimate.subtotal))
+                                }
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Discount (Item):")
+                                    Text(String.format("- ₹%.2f", estimate.discountTotal), color = Color.Red)
+                                }
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("GST Total:")
+                                    Text(String.format("₹%.2f", estimate.gstTotal))
+                                }
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Grand Total:", fontWeight = FontWeight.Bold)
+                                    Text(String.format("₹%.2f", estimate.grandTotal), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(
+                        onClick = onClose,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Close & Back to Dashboard")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DuplicateProductWarningDialog(
+    message: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Possible Duplicate Product Found", fontWeight = FontWeight.Bold) },
+        text = { Text(message) },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("Continue Anyway")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }

@@ -51,12 +51,11 @@ private fun defaultActivities(): List<RecentActivityItem> = listOf(
 )
 
 private fun defaultActions(): List<HomeAction> = listOf(
-    HomeAction("new_sale", "New Sale", "Create new bill", null, "billing"),
+    HomeAction("new_estimate", "New Estimate", "Create new estimate", null, "sales/new"),
+    HomeAction("estimates_list", "Estimates List", "View saved estimates", null, "billing"),
     HomeAction("products", "Products", "Manage products", null, "products"),
     HomeAction("purchases", "Purchases", "Purchase stock", null, "purchases"),
     HomeAction("inventory", "Inventory", "Manage stock", null, "inventory"),
     HomeAction("customers", "Customers", "Manage customers", null, "customers"),
-    HomeAction("suppliers", "Suppliers", "Manage suppliers", null, "suppliers"),
-    HomeAction("reports", "Reports", "View reports", null, "reports"),
     HomeAction("settings", "Settings", "Application settings", null, "settings")
 )

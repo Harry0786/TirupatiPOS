@@ -14,6 +14,7 @@ import com.tirupati.pos.feature.sales.presentation.screen.EstimatesScreen
 import com.tirupati.pos.feature.sales.presentation.screen.NewEstimateScreen
 import com.tirupati.pos.feature.sales.presentation.screen.PaymentScreen
 import com.tirupati.pos.feature.sales.presentation.state.EstimateEffect
+import com.tirupati.pos.feature.sales.presentation.state.EstimateEvent
 import com.tirupati.pos.feature.sales.presentation.viewmodel.EstimateViewModel
 
 fun NavGraphBuilder.salesGraph(
@@ -60,6 +61,9 @@ fun NavGraphBuilder.salesGraph(
 
         composable("sales/new") {
             val context = LocalContext.current
+            LaunchedEffect(Unit) {
+                viewModel.onEvent(EstimateEvent.StartNewEstimate)
+            }
             LaunchedEffect(viewModel.effect) {
                 viewModel.effect.collect { effect ->
                     if (navController.currentDestination?.route == "sales/new") {
