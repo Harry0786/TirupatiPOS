@@ -1,7 +1,7 @@
 package com.tirupati.pos.core.di
 
-import com.tirupati.pos.core.sync.NoOpSyncManager
-import com.tirupati.pos.core.sync.NoOpSyncScheduler
+import com.tirupati.pos.core.sync.DefaultSyncManager
+import com.tirupati.pos.core.sync.DefaultSyncScheduler
 import com.tirupati.pos.core.sync.SyncManager
 import com.tirupati.pos.core.sync.SyncScheduler
 import dagger.Module
@@ -16,9 +16,9 @@ object SyncModule {
 
     @Provides
     @Singleton
-    fun provideSyncManager(impl: NoOpSyncManager): SyncManager = impl
+    fun provideSyncManager(impl: DefaultSyncManager): SyncManager = impl
 
     @Provides
     @Singleton
-    fun provideSyncScheduler(impl: NoOpSyncScheduler): SyncScheduler = impl
+    fun provideSyncScheduler(impl: DefaultSyncScheduler): SyncScheduler = impl
 }

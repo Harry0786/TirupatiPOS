@@ -1,24 +1,38 @@
 package com.tirupati.pos.core.ui.home
 
-import com.tirupati.pos.core.database.PendingOperation
-
 data class HomeUiState(
     val shopName: String = "TEPOS",
-    val currentDate: String = "18 June 2026",
-    val currentTime: String = "10:45 AM",
+    val greeting: String = "Good Afternoon, Jayesh",
+    val currentDate: String = "Thursday, 18 June 2026",
+    val currentTime: String = "2:30:45 PM",
+    
+    // Status metrics
     val internetStatus: String = "Online",
-    val syncStatus: String = "Idle",
+    val syncStatus: String = "All Synced",
+    val lastSync: String = "2 seconds ago",
     val pendingSyncCount: Int = 0,
-    val lastSync: String = "Just now",
-    val printerStatus: String = "Connected",
-    val scannerStatus: String = "Connected",
-    val recentActivities: List<String> = listOf(
-        "Sale #1001",
-        "Purchase #201",
-        "Product Added",
-        "Stock Updated"
-    ),
+    
+    // Summary metrics
+    val salesToday: String = "₹12,850",
+    val salesTodayTrend: String = "18% vs Yesterday",
+    val billsToday: Int = 24,
+    val billsTodayTrend: String = "9% vs Yesterday",
+    val customersCount: Int = 18,
+    val customersTrend: String = "4% vs Yesterday",
+    val itemsSoldCount: Int = 96,
+    val itemsSoldTrend: String = "11% vs Yesterday",
+    
+    // Recent activities list structured
+    val recentActivities: List<RecentActivityItem> = defaultActivities(),
     val quickActions: List<HomeAction> = defaultActions()
+)
+
+data class RecentActivityItem(
+    val id: String,
+    val title: String,
+    val subtitle: String,
+    val time: String,
+    val type: String // "sale", "stock", "purchase", "payment"
 )
 
 data class HomeAction(
@@ -27,6 +41,13 @@ data class HomeAction(
     val subtitle: String,
     val icon: Int? = null,
     val route: String
+)
+
+private fun defaultActivities(): List<RecentActivityItem> = listOf(
+    RecentActivityItem("1", "Invoice INV-1005", "Sale • ₹1,250", "2 min ago", "sale"),
+    RecentActivityItem("2", "Stock Updated", "LED Bulb • +40 Qty", "15 min ago", "stock"),
+    RecentActivityItem("3", "Purchase Added", "ABC Electronics • ₹18,500", "32 min ago", "purchase"),
+    RecentActivityItem("4", "Payment Received", "INV-1004 • ₹2,350", "48 min ago", "payment")
 )
 
 private fun defaultActions(): List<HomeAction> = listOf(

@@ -1,5 +1,28 @@
 package com.tirupati.pos.core.sync
 
-class DefaultSyncManager : SyncManager {
-    override suspend fun requestSync() = Unit
+import android.content.Context
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class DefaultSyncManager @Inject constructor(
+    @ApplicationContext private val context: Context
+) : SyncManager {
+
+    override suspend fun requestSync() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val syncRequest = OneTimeWorkRequestBuilder<SyncWorker>()
+            .setConstraints(constraints)
+            .build()
+
+        WorkManager.getInstance(context).enqueue(syncRequest)
+    }
 }

@@ -42,6 +42,7 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
 
     implementation(libs.androidx.room.runtime)
@@ -49,7 +50,9 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     implementation(libs.hilt.android)
+    implementation("androidx.hilt:hilt-work:1.2.0")
     ksp(libs.hilt.compiler)
+    ksp("androidx.hilt:hilt-compiler:1.2.0")
     implementation(libs.androidx.hilt.navigation.compose)
 
     implementation(libs.androidx.work.runtime.ktx)

@@ -1,6 +1,8 @@
 package com.tirupati.pos.core.di
 
 import android.content.Context
+import com.tirupati.pos.core.network.ConnectivityNetworkMonitor
+import com.tirupati.pos.core.network.NetworkMonitor
 import com.tirupati.pos.core.network.SupabaseProvider
 import dagger.Module
 import dagger.Provides
@@ -38,4 +40,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideSupabaseProvider(client: SupabaseClient): SupabaseProvider = SupabaseProvider(client)
+
+    @Provides
+    @Singleton
+    fun provideNetworkMonitor(impl: ConnectivityNetworkMonitor): NetworkMonitor = impl
 }

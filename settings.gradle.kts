@@ -29,5 +29,6 @@ include(
     ":feature-customers",
     ":feature-suppliers",
     ":feature-reports",
-    ":feature-settings"
+    ":feature-settings",
+    ":feature-sales"
 )

@@ -3,6 +3,7 @@ package com.tirupati.pos.core.di
 import android.content.Context
 import androidx.room.Room
 import com.tirupati.pos.core.database.AppDatabase
+import com.tirupati.pos.core.database.PendingOperationDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -22,5 +23,11 @@ object DatabaseModule {
             AppDatabase::class.java,
             "tirupati_pos.db"
         ).build()
+    }
+
+    @Provides
+    @Singleton
+    fun providePendingOperationDao(db: AppDatabase): PendingOperationDao {
+        return db.pendingOperationDao()
     }
 }

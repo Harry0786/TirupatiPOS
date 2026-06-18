@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base application theme inheriting directly from the Android Platform theme to guarantee compilation -->
+    <style name="Theme.Tepos" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Style status bar and navigation bar transparently for Compose -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>
