@@ -19,4 +19,10 @@ interface SalesRepository {
     fun observeProducts(): Flow<List<Product>>
     suspend fun searchProducts(query: String): List<Product>
     suspend fun saveProduct(product: Product)
+
+    fun observeSalesForDate(date: String): Flow<Double>
+    fun observeBillsCountForDate(date: String): Flow<Int>
+    fun observeItemsSoldCountForDate(date: String): Flow<Int>
+    fun observeCustomersCountForDate(date: String): Flow<Int>
+    fun observeRecentInvoices(limit: Int = 5): Flow<List<Invoice>>
 }

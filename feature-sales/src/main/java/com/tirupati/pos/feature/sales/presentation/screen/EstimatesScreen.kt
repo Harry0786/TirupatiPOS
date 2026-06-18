@@ -208,32 +208,27 @@ fun EstimatesList(
         ) {
             items(estimates) { estimate ->
                 val isSelected = estimate.id == selectedId
-                Card(
+                val backgroundColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent
+
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onItemClick(estimate) },
-                    shape = RoundedCornerShape(10.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isSelected) Color(0xFFEFF6FF) else Color.White
-                    ),
-                    border = BorderStroke(
-                        width = 1.dp,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFFE5E7EB)
-                    )
+                        .clickable { onItemClick(estimate) }
+                        .background(backgroundColor)
+                        .padding(vertical = 12.dp, horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
                                 text = estimate.estimateNumber,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFF111827)
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                             )
                             Box(
                                 modifier = Modifier
@@ -263,33 +258,29 @@ fun EstimatesList(
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = estimate.customerName,
                             style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF4B5563)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = estimate.date,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF9CA3AF)
-                            )
-                            Text(
-                                text = String.format("₹%.2f", estimate.grandTotal),
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "₹${estimate.grandTotal}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = estimate.date,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             }
         }
     }

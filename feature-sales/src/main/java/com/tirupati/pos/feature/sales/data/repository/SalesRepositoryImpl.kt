@@ -75,13 +75,15 @@ class SalesRepositoryImpl @Inject constructor(
         val localItems = items.map { it.toLocal().copy(estimateId = estimate.id) }
         estimateDao.saveEstimateWithItems(localEst, localItems)
 
+        val updatedItems = items.map { it.copy(estimateId = estimate.id) }
+
         // Queue Sync Operation
         val op = PendingOperation(
             id = UUID.randomUUID().toString(),
             operationType = "INSERT",
             entityType = "estimates",
             entityId = estimate.id,
-            payloadJson = Json.encodeToString(Estimate.serializer(), estimate.copy(items = items)),
+            payloadJson = Json.encodeToString(Estimate.serializer(), estimate.copy(items = updatedItems)),
             timestamp = System.currentTimeMillis()
         )
         syncQueue.enqueue(op)
@@ -124,13 +126,16 @@ class SalesRepositoryImpl @Inject constructor(
         val localItems = invoice.items.map { it.toLocal(invoice.id) }
         invoiceDao.saveInvoiceWithItems(localInv, localItems)
 
+        val updatedItems = invoice.items.map { it.copy(invoiceId = invoice.id) }
+        val updatedInvoice = invoice.copy(items = updatedItems)
+
         // Queue Sync Operation
         val op = PendingOperation(
             id = UUID.randomUUID().toString(),
             operationType = "INSERT",
             entityType = "invoices",
             entityId = invoice.id,
-            payloadJson = Json.encodeToString(Invoice.serializer(), invoice),
+            payloadJson = Json.encodeToString(Invoice.serializer(), updatedInvoice),
             timestamp = System.currentTimeMillis()
         )
         syncQueue.enqueue(op)
@@ -176,5 +181,25 @@ class SalesRepositoryImpl @Inject constructor(
         )
         syncQueue.enqueue(op)
         syncManager.requestSync()
+    }
+
+    override fun observeSalesForDate(date: String): Flow<Double> {
+        return invoiceDao.observeSalesForDate(date).map { it ?: 0.0 }
+    }
+
+    override fun observeBillsCountForDate(date: String): Flow<Int> {
+        return invoiceDao.observeBillsCountForDate(date).map { it ?: 0 }
+    }
+
+    override fun observeItemsSoldCountForDate(date: String): Flow<Int> {
+        return invoiceDao.observeItemsSoldCountForDate(date).map { it ?: 0 }
+    }
+
+    override fun observeCustomersCountForDate(date: String): Flow<Int> {
+        return invoiceDao.observeCustomersCountForDate(date).map { it ?: 0 }
+    }
+
+    override fun observeRecentInvoices(limit: Int): Flow<List<Invoice>> {
+        return invoiceDao.observeRecentInvoices(limit).map { list -> list.map { it.toDomain(emptyList()) } }
     }
 }

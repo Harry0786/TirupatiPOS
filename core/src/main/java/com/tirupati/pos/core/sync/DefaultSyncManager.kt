@@ -25,4 +25,20 @@ class DefaultSyncManager @Inject constructor(
 
         WorkManager.getInstance(context).enqueue(syncRequest)
     }
+
+    override fun startPeriodicSync() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val periodicRequest = androidx.work.PeriodicWorkRequestBuilder<SyncWorker>(15, java.util.concurrent.TimeUnit.MINUTES)
+            .setConstraints(constraints)
+            .build()
+
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            "PeriodicSync",
+            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+            periodicRequest
+        )
+    }
 }

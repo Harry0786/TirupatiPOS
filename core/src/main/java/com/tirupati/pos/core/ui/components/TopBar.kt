@@ -34,11 +34,19 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
+import com.tirupati.pos.core.sync.SyncUiState
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.CloudQueue
+import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.Sync
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TopBar(
     shopName: String,
     modifier: Modifier = Modifier,
+    syncUiState: SyncUiState? = null,
+    onSyncClicked: () -> Unit = {},
     onSearchClicked: () -> Unit = {},
     onNotificationsClicked: () -> Unit = {},
     onOverflowClicked: () -> Unit = {}
@@ -64,6 +72,34 @@ fun TopBar(
             }
         },
         actions = {
+            if (syncUiState != null) {
+                IconButton(onClick = onSyncClicked, modifier = Modifier.semantics { contentDescription = "Sync Status" }) {
+                    val icon = if (!syncUiState.isNetworkAvailable) {
+                        Icons.Default.CloudOff
+                    } else if (syncUiState.isSyncing) {
+                        Icons.Default.Sync
+                    } else if (syncUiState.pendingOperationsCount > 0) {
+                        Icons.Default.CloudSync
+                    } else {
+                        Icons.Default.CloudQueue
+                    }
+                    val tint = if (!syncUiState.isNetworkAvailable) {
+                        MaterialTheme.colorScheme.error
+                    } else if (syncUiState.isSyncing) {
+                        MaterialTheme.colorScheme.primary
+                    } else if (syncUiState.pendingOperationsCount > 0) {
+                        MaterialTheme.colorScheme.tertiary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = tint
+                    )
+                }
+            }
             IconButton(onClick = onSearchClicked, modifier = Modifier.semantics { contentDescription = "Search" }) {
                 Icon(
                     imageVector = Icons.Default.Search,

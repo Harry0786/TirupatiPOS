@@ -208,32 +208,29 @@ fun NewEstimateScreen(
                                     Spacer(modifier = Modifier.height(8.dp))
                                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         items(state.searchProductsResults) { product ->
-                                            Card(
+                                            Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .clickable {
                                                         viewModel.onEvent(EstimateEvent.AddProductToEstimate(product))
                                                         viewModel.onEvent(EstimateEvent.SearchProducts(""))
-                                                    },
-                                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB)),
-                                                border = BorderStroke(1.dp, Color(0xFFF0F2F5))
+                                                    }
+                                                    .padding(vertical = 12.dp, horizontal = 12.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(12.dp),
-                                                    horizontalArrangement = Arrangement.SpaceBetween
-                                                ) {
-                                                    Column(modifier = Modifier.weight(1f)) {
-                                                        Text(product.itemName, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                                        Text(product.itemCode, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                                                    }
-                                                    Column(horizontalAlignment = Alignment.End) {
-                                                        Text("₹${product.sellingPrice}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                                        Text("GST ${product.gstPercent.toInt()}%", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                                                    }
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(product.itemName, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    Text(product.itemCode, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                }
+                                                Column(horizontalAlignment = Alignment.End) {
+                                                    Text("₹${product.sellingPrice}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    Text("GST ${product.gstPercent.toInt()}%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                                 }
                                             }
+                                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                         }
                                     }
                                 }

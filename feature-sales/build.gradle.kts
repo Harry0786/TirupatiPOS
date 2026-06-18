@@ -57,4 +57,7 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
 
     implementation(libs.androidx.work.runtime.ktx)
+
+    implementation(libs.supabase.kt)
+    implementation(libs.supabase.postgrest)
 }

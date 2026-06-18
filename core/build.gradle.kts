@@ -59,6 +59,7 @@ dependencies {
 
     implementation(libs.supabase.kt)
     implementation(libs.supabase.postgrest)
+    implementation("io.ktor:ktor-client-android:3.0.0")
 
     implementation(libs.coil.compose)
 }

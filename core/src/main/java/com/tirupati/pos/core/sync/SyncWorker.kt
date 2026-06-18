@@ -12,6 +12,9 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonArray
 
 @HiltWorker
 class SyncWorker @AssistedInject constructor(
@@ -19,7 +22,9 @@ class SyncWorker @AssistedInject constructor(
     @Assisted workerParameters: WorkerParameters,
     private val syncQueue: SyncQueue,
     private val supabaseClient: SupabaseClient,
-    private val networkMonitor: NetworkMonitor
+    private val networkMonitor: NetworkMonitor,
+    private val syncStatusManager: SyncStatusManager,
+    private val downwardSyncHandlers: Set<@JvmSuppressWildcards DownwardSyncHandler>
 ) : CoroutineWorker(appContext, workerParameters) {
     override suspend fun doWork(): Result {
         // network status check
@@ -32,9 +37,6 @@ class SyncWorker @AssistedInject constructor(
 
         val pendingOps = syncQueue.drain()
         android.util.Log.d("SyncWorker", "Pending ops count: ${pendingOps.size}")
-        if (pendingOps.isEmpty()) {
-            return Result.success()
-        }
 
         var hasFailure = false
 
@@ -52,7 +54,42 @@ class SyncWorker @AssistedInject constructor(
                         if (op.payloadJson != null) {
                             val element = Json.parseToJsonElement(op.payloadJson)
                             if (element is JsonObject) {
-                                supabaseClient.postgrest[tableName].upsert(element)
+                                val jsonObject = element.jsonObject
+                                val itemsArray = jsonObject["items"]?.jsonArray
+                                
+                                val map = mutableMapOf<String, JsonElement>()
+                                jsonObject.entries.forEach { (key, value) ->
+                                    if (key != "items") {
+                                        val snakeKey = key.replace(Regex("([a-z])([A-Z]+)")) {
+                                            "${it.groupValues[1]}_${it.groupValues[2].lowercase()}"
+                                        }
+                                        map[snakeKey] = value
+                                    }
+                                }
+                                val snakeObject = JsonObject(map)
+                                
+                                supabaseClient.postgrest[tableName].upsert(snakeObject)
+                                
+                                if (itemsArray != null && itemsArray.isNotEmpty()) {
+                                    val itemTableName = when (tableName) {
+                                        "estimates" -> "estimate_items"
+                                        "invoices" -> "invoice_items"
+                                        else -> null
+                                    }
+                                    if (itemTableName != null) {
+                                        val snakeItems = itemsArray.map { item ->
+                                            val itemMap = mutableMapOf<String, JsonElement>()
+                                            item.jsonObject.entries.forEach { (key, value) ->
+                                                val snakeKey = key.replace(Regex("([a-z])([A-Z]+)")) {
+                                                    "${it.groupValues[1]}_${it.groupValues[2].lowercase()}"
+                                                }
+                                                itemMap[snakeKey] = value
+                                            }
+                                            JsonObject(itemMap)
+                                        }
+                                        supabaseClient.postgrest[itemTableName].upsert(snakeItems)
+                                    }
+                                }
                             }
                         }
                     }
@@ -71,6 +108,21 @@ class SyncWorker @AssistedInject constructor(
             }
         }
 
+        if (!hasFailure) {
+            // Perform Downward Sync for all features
+            try {
+                downwardSyncHandlers.forEach { handler ->
+                    handler.performDownwardSync()
+                }
+            } catch (t: Throwable) {
+                android.util.Log.e("SyncWorker", "Error during downward sync", t)
+                hasFailure = true
+            }
+
+            if (!hasFailure) {
+                syncStatusManager.updateLastSyncTime()
+            }
+        }
         return if (hasFailure) Result.retry() else Result.success()
     }
 

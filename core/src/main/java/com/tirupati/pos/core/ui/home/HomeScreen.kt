@@ -43,13 +43,18 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.collectAsState
+
 
 @Composable
 fun HomeScreen(
-    state: HomeUiState = HomeUiState(),
     onActionClick: (String) -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
+    val state by viewModel.homeUiState.collectAsState()
+    val syncUiState by viewModel.syncUiState.collectAsState()
     val widthClass = calculateWindowWidthSizeClass()
     val isTablet = widthClass != WindowWidthSizeClass.Compact
     
@@ -112,10 +117,11 @@ fun HomeScreen(
                         greeting = state.greeting,
                         date = currentDate,
                         time = currentTime,
-                        internetStatus = state.internetStatus,
-                        syncStatus = state.syncStatus,
-                        pending = state.pendingSyncCount,
-                        lastSync = state.lastSync,
+                        internetStatus = if (syncUiState.isNetworkAvailable) "Online" else "Offline",
+                        syncStatus = if (syncUiState.pendingOperationsCount > 0) "Pending Sync" else "All Synced",
+                        pending = syncUiState.pendingOperationsCount,
+                        lastSync = "Just now", // In a real app this would format syncUiState.lastSyncTime
+                        onRefreshClick = { viewModel.refreshStatus() },
                         modifier = Modifier.padding(top = 16.dp)
                     )
                 }

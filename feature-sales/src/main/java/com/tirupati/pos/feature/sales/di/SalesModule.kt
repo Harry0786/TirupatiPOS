@@ -22,6 +22,14 @@ abstract class SalesRepositoryModule {
     @Binds
     @Singleton
     abstract fun bindSalesRepository(impl: SalesRepositoryImpl): SalesRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindHomeDataProvider(impl: com.tirupati.pos.feature.sales.data.provider.HomeDataProviderImpl): com.tirupati.pos.core.ui.home.HomeDataProvider
+
+    @Binds
+    @dagger.multibindings.IntoSet
+    abstract fun bindSalesSyncHandler(impl: com.tirupati.pos.feature.sales.sync.SalesSyncHandler): com.tirupati.pos.core.sync.DownwardSyncHandler
 }
 
 @Module

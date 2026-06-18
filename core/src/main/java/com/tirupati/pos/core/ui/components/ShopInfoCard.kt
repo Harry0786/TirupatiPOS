@@ -2,6 +2,7 @@ package com.tirupati.pos.core.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,7 +45,8 @@ fun ShopInfoCard(
     syncStatus: String,
     pending: Int,
     lastSync: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onRefreshClick: () -> Unit = {}
 ) {
     val widthClass = calculateWindowWidthSizeClass()
     val isTablet = widthClass != WindowWidthSizeClass.Compact
@@ -86,13 +88,15 @@ fun ShopInfoCard(
                     )
                 }
 
-                // Digital Clock text
-                Text(
-                    text = time,
-                    style = if (isTablet) MaterialTheme.typography.titleLarge else MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF4B5563)
-                )
+                // Digital Clock
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = time,
+                        style = if (isTablet) MaterialTheme.typography.titleLarge else MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF4B5563)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -172,6 +176,30 @@ fun ShopInfoCard(
                             color = Color(0xFF1F2937)
                         )
                     }
+                }
+
+                // Refresh Button
+                Row(
+                    modifier = Modifier
+                        .background(Color(0xFFEFF6FF), RoundedCornerShape(8.dp))
+                        .border(1.dp, Color(0xFFBFDBFE), RoundedCornerShape(8.dp))
+                        .clickable(onClick = onRefreshClick)
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Refresh",
+                        tint = Color(0xFF2563EB),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Refresh",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF2563EB)
+                    )
                 }
             }
         }

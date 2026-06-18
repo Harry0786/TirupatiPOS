@@ -2,6 +2,8 @@ package com.tirupati.pos.core.di
 
 import android.content.Context
 import com.tirupati.pos.core.network.ConnectivityNetworkMonitor
+import com.tirupati.pos.core.network.ConnectivityObserver
+import com.tirupati.pos.core.network.NetworkConnectivityObserver
 import com.tirupati.pos.core.network.NetworkMonitor
 import com.tirupati.pos.core.network.SupabaseProvider
 import dagger.Module
@@ -44,4 +46,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideNetworkMonitor(impl: ConnectivityNetworkMonitor): NetworkMonitor = impl
+
+    @Provides
+    @Singleton
+    fun provideConnectivityObserver(impl: NetworkConnectivityObserver): ConnectivityObserver = impl
 }

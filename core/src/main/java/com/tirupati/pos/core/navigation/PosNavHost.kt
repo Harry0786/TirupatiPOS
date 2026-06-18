@@ -32,6 +32,9 @@ fun PosNavHost(
     startDestination: String = AppDestination.Splash.route,
     salesGraphBuilder: (NavGraphBuilder, NavController) -> Unit = { builder, controller ->
         builder.composable(AppDestination.Billing.route) { PlaceholderDestination() }
+    },
+    productsGraphBuilder: (NavGraphBuilder, NavController) -> Unit = { builder, controller ->
+        builder.composable(AppDestination.Products.route) { ProductsPlaceholder() }
     }
 ) {
     NavHost(
@@ -52,7 +55,9 @@ fun PosNavHost(
             )
         }
         composable(AppDestination.Auth.route) { PlaceholderDestination() }
-        composable(AppDestination.Products.route) { PlaceholderDestination() }
+        
+        // Invoke the injected products graph builder
+        productsGraphBuilder(this, navController)
         
         // Invoke the injected sales graph builder
         salesGraphBuilder(this, navController)
@@ -60,6 +65,7 @@ fun PosNavHost(
         composable(AppDestination.Inventory.route) { PlaceholderDestination() }
         composable(AppDestination.Customers.route) { PlaceholderDestination() }
         composable(AppDestination.Suppliers.route) { PlaceholderDestination() }
+
         composable(AppDestination.Reports.route) { PlaceholderDestination() }
         composable(AppDestination.Settings.route) { PlaceholderDestination() }
     }
@@ -92,6 +98,19 @@ fun SplashScreen(
             modifier = Modifier
                 .size(160.dp) // Large centered logo for high visibility
                 .alpha(alpha.value)
+        )
+    }
+}
+
+@Composable
+fun ProductsPlaceholder() {
+    Box(
+        modifier = Modifier.fillMaxSize().background(Color.White),
+        contentAlignment = Alignment.Center
+    ) {
+        androidx.compose.material3.Text(
+            text = "Products Screen",
+            style = androidx.compose.material3.MaterialTheme.typography.headlineMedium
         )
     }
 }

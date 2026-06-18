@@ -40,6 +40,12 @@ interface EstimateDao : BaseDao<LocalEstimate> {
         deleteItems(estimate.id)
         insertItems(items)
     }
+
+    @Query("SELECT id FROM estimates")
+    suspend fun getAllIds(): List<String>
+
+    @Query("DELETE FROM estimates WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<String>)
 }
 
 @Dao
@@ -56,14 +62,39 @@ interface InvoiceDao : BaseDao<LocalInvoice> {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItems(items: List<LocalInvoiceItem>)
 
+    @Query("DELETE FROM invoice_items WHERE invoiceId = :invoiceId")
+    suspend fun deleteItems(invoiceId: String)
+
     @Query("SELECT * FROM invoice_items WHERE invoiceId = :invoiceId ORDER BY srNo ASC")
     suspend fun getItems(invoiceId: String): List<LocalInvoiceItem>
 
     @Transaction
     suspend fun saveInvoiceWithItems(invoice: LocalInvoice, items: List<LocalInvoiceItem>) {
         insert(invoice)
+        deleteItems(invoice.id)
         insertItems(items)
     }
+
+    @Query("SELECT id FROM invoices")
+    suspend fun getAllIds(): List<String>
+
+    @Query("DELETE FROM invoices WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<String>)
+
+    @Query("SELECT SUM(grandTotal) FROM invoices WHERE date = :date")
+    fun observeSalesForDate(date: String): Flow<Double?>
+
+    @Query("SELECT COUNT(*) FROM invoices WHERE date = :date")
+    fun observeBillsCountForDate(date: String): Flow<Int?>
+
+    @Query("SELECT SUM(quantity) FROM invoice_items WHERE invoiceId IN (SELECT id FROM invoices WHERE date = :date)")
+    fun observeItemsSoldCountForDate(date: String): Flow<Int?>
+
+    @Query("SELECT COUNT(DISTINCT customerName) FROM invoices WHERE date = :date")
+    fun observeCustomersCountForDate(date: String): Flow<Int?>
+
+    @Query("SELECT * FROM invoices ORDER BY createdAt DESC LIMIT :limit")
+    fun observeRecentInvoices(limit: Int = 5): Flow<List<LocalInvoice>>
 }
 
 @Dao
